@@ -14,13 +14,13 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2A2A2A),
+      backgroundColor: const Color(0xFF1A1A1A),
       body: Column(
         children: [
-          // Cream Background Area - Takes up most space
+          // Light Background Area - Takes up most space
           Expanded(
             child: Container(
-              color: const Color(0xFFE8DCC8),
+              color: const Color(0xFFF5F5F5),
               width: double.infinity,
               child: Center(
                 child: SingleChildScrollView(
@@ -31,7 +31,7 @@ class _LoginPageState extends State<LoginPage> {
                       // Logo and Title Group - Centered
                       Column(
                         children: [
-                          // Logo Image with Wifi indicator
+                          // Logo Image with IoT indicator
                           Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -42,8 +42,8 @@ class _LoginPageState extends State<LoginPage> {
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
-                                      blurRadius: 8,
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),
                                   ],
@@ -55,7 +55,18 @@ class _LoginPageState extends State<LoginPage> {
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
-                                        color: const Color(0xFFFFA500),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              const Color(0xFF2E7D32),
+                                              const Color(0xFF1976D2),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
                                         child: const Center(
                                           child: Icon(
                                             Icons.home,
@@ -68,13 +79,14 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ),
+                              // IoT WiFi Indicator
                               Positioned(
                                 top: -8,
                                 right: -8,
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: const BoxDecoration(
-                                    color: Color(0xFF4A90E2),
+                                    color: Color(0xFF1976D2), // Biru IoT
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -93,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
                             style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF1F1F1F),
+                              color: Color(0xFF2E7D32), // Hijau Pertanian
                               letterSpacing: 1.5,
                             ),
                           ),
@@ -102,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
                             style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF1F1F1F),
+                              color: Color(0xFF1976D2), // Biru IoT
                               letterSpacing: 1.5,
                             ),
                           ),
@@ -111,9 +123,33 @@ class _LoginPageState extends State<LoginPage> {
                             'Monitoring Ternak Lebih Efisien.',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF888888),
+                              color: Color(0xFF666666),
                               letterSpacing: 0.2,
                               fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Tag IoT
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE3F2FD),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF1976D2),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Text(
+                              'Powered by IoT Technology',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Color(0xFF1976D2),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -128,7 +164,7 @@ class _LoginPageState extends State<LoginPage> {
 
           // Dark Background Area - Login Buttons
           Container(
-            color: const Color(0xFF2A2A2A),
+            color: const Color(0xFF1A1A1A),
             width: double.infinity,
             padding: const EdgeInsets.symmetric(
               horizontal: 30,
@@ -149,8 +185,8 @@ class _LoginPageState extends State<LoginPage> {
                         });
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE8DCC8),
-                        elevation: 0,
+                        backgroundColor: const Color(0xFF2E7D32), // Hijau
+                        elevation: 4,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -160,7 +196,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1F1F1F),
+                          color: Colors.white,
                           letterSpacing: 0.3,
                         ),
                       ),
@@ -168,10 +204,10 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Klik Login untuk masuk.',
+                    'Klik Login untuk masuk ke sistem.',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF888888),
+                      color: Color(0xFF999999),
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -186,8 +222,8 @@ class _LoginPageState extends State<LoginPage> {
                         Navigator.of(context).pushReplacementNamed(AppRoutes.home);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE8DCC8),
-                        elevation: 0,
+                        backgroundColor: const Color(0xFF1976D2), // Biru IoT
+                        elevation: 4,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -197,7 +233,7 @@ class _LoginPageState extends State<LoginPage> {
                         children: [
                           const Icon(
                             Icons.login,
-                            color: Color(0xFF1F1F1F),
+                            color: Colors.white,
                             size: 18,
                           ),
                           const SizedBox(width: 8),
@@ -206,11 +242,42 @@ class _LoginPageState extends State<LoginPage> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F1F1F),
+                              color: Colors.white,
                               letterSpacing: 0.2,
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Back Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          showGoogleLogin = false;
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(
+                          color: Color(0xFF2E7D32),
+                          width: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Kembali',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2E7D32),
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
                   ),

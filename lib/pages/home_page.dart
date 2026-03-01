@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 import '../routes/app_routes.dart';
 
 class HomePage extends StatefulWidget {
@@ -19,9 +20,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE8DCC8),
+      backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE8DCC8),
+        backgroundColor: AppColors.lightBackground,
         elevation: 0,
         toolbarHeight: 0,
       ),
@@ -29,7 +30,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             Container(
-              color: const Color(0xFFE8DCC8),
+              color: AppColors.lightBackground,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,7 +47,7 @@ class _HomePageState extends State<HomePage> {
                             width: 68,
                             height: 68,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFA500),
+                              gradient: AppColors.primaryGradient,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: ClipRRect(
@@ -72,7 +73,7 @@ class _HomePageState extends State<HomePage> {
                             child: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: const BoxDecoration(
-                                color: Color(0xFF4A90E2),
+                                color: AppColors.primaryBlue,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -90,32 +91,32 @@ class _HomePageState extends State<HomePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'KANDANG',
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF1F1F1F),
+                                color: AppColors.primaryGreen,
                                 letterSpacing: 1.5,
                                 height: 1.0,
                               ),
                             ),
-                            const Text(
+                            Text(
                               'PINTAR',
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF1F1F1F),
+                                color: AppColors.primaryBlue,
                                 letterSpacing: 1.5,
                                 height: 1.0,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
+                            Text(
                               'Monitoring Ternak Lebih Efisien.',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFF6B6B6B),
+                                color: AppColors.textSecondary,
                                 letterSpacing: 0.2,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -128,12 +129,12 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 28),
 
                   // Monitoring Realtime Section
-                  const Text(
+                  Text(
                     'Monitoring Realtime',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1F1F1F),
+                      color: AppColors.textPrimary,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -154,7 +155,7 @@ class _HomePageState extends State<HomePage> {
                         label: 'Suhu',
                         value: '28.5',
                         unit: '°C',
-                        iconColor: const Color(0xFFD4AF37),
+                        iconColor: AppColors.accentOrange,
                       ),
                       // Kelembapan Card
                       _buildMonitoringCard(
@@ -162,7 +163,7 @@ class _HomePageState extends State<HomePage> {
                         label: 'Kelembapan',
                         value: '65',
                         unit: '%',
-                        iconColor: const Color(0xFF5DADE2),
+                        iconColor: AppColors.primaryBlue,
                       ),
                       // Amonia Card
                       _buildMonitoringCard(
@@ -170,7 +171,7 @@ class _HomePageState extends State<HomePage> {
                         label: 'Amonia',
                         value: '12.4',
                         unit: 'PPM',
-                        iconColor: const Color(0xFF58D68D),
+                        iconColor: AppColors.success,
                       ),
                       // Pakan Card
                       _buildMonitoringCard(
@@ -178,19 +179,19 @@ class _HomePageState extends State<HomePage> {
                         label: 'Pakan',
                         value: '5.8',
                         unit: 'KG',
-                        iconColor: const Color(0xFFEC7063),
+                        iconColor: AppColors.error,
                       ),
                     ],
                   ),
                   const SizedBox(height: 28),
 
                   // Kontrol Perangkat Section
-                  const Text(
+                  Text(
                     'Kontrol Perangkat',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1F1F1F),
+                      color: AppColors.textPrimary,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -201,21 +202,21 @@ class _HomePageState extends State<HomePage> {
                     icon: Icons.lightbulb,
                     label: 'Lampu Pemanas',
                     deviceKey: 'Lampu Pemanas',
-                    iconColor: const Color(0xFFFFA500),
+                    iconColor: AppColors.accentOrange,
                   ),
                   const SizedBox(height: 12),
                   _buildControlSwitch(
                     icon: Icons.water,
                     label: 'Pompa Air',
                     deviceKey: 'Pompa Air',
-                    iconColor: const Color(0xFF5DADE2),
+                    iconColor: AppColors.primaryBlue,
                   ),
                   const SizedBox(height: 12),
                   _buildControlSwitch(
                     icon: Icons.air,
                     label: 'Kipas Exhaust',
                     deviceKey: 'Kipas Exhaust',
-                    iconColor: const Color(0xFF58D68D),
+                    iconColor: AppColors.success,
                   ),
                   const SizedBox(height: 80),
                 ],
@@ -234,7 +235,7 @@ class _HomePageState extends State<HomePage> {
               width: 1,
             ),
           ),
-          color: const Color(0xFFE8DCC8),
+          color: AppColors.lightBackground,
         ),
         child: SafeArea(
           child: Container(
@@ -290,7 +291,7 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: isSelected
             ? BoxDecoration(
-                color: const Color(0xFFC9A878),
+                color: AppColors.primaryGreen.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               )
             : null,
@@ -301,8 +302,8 @@ class _HomePageState extends State<HomePage> {
               icon,
               size: 22,
               color: isSelected 
-                  ? const Color(0xFF1F1F1F) 
-                  : const Color(0xFF888888),
+                  ? AppColors.primaryGreen
+                  : AppColors.textTertiary,
             ),
             const SizedBox(height: 1),
             Text(
@@ -311,8 +312,8 @@ class _HomePageState extends State<HomePage> {
                 fontSize: 9,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected 
-                    ? const Color(0xFF1F1F1F) 
-                    : const Color(0xFF888888),
+                    ? AppColors.primaryGreen
+                    : AppColors.textTertiary,
               ),
             ),
           ],
@@ -333,12 +334,12 @@ class _HomePageState extends State<HomePage> {
         width: 50,
         height: 50,
         decoration: const BoxDecoration(
-          color: Color(0xFFC9A878),
+          color: AppColors.primaryBlue,
           shape: BoxShape.circle,
         ),
         child: const Icon(
           Icons.add,
-          color: Color(0xFF1F1F1F),
+          color: Colors.white,
           size: 26,
         ),
       ),
@@ -348,22 +349,17 @@ class _HomePageState extends State<HomePage> {
   void _navigateToTab(int index) {
     switch (index) {
       case 0:
-        // Home - already on home page
         break;
       case 1:
-        // Scan
         Navigator.pushNamed(context, AppRoutes.scan);
         break;
       case 2:
-        // Add device (Plus button)
         Navigator.pushNamed(context, AppRoutes.addDevice);
         break;
       case 3:
-        // Riwayat History
         Navigator.pushNamed(context, AppRoutes.history);
         break;
       case 4:
-        // Profil
         Navigator.pushNamed(context, AppRoutes.settings);
         break;
     }
@@ -378,8 +374,12 @@ class _HomePageState extends State<HomePage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2D2D1F),
+        color: AppColors.darkBackground,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: iconColor.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
@@ -397,9 +397,9 @@ class _HomePageState extends State<HomePage> {
               Flexible(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF9B9B7B),
+                    color: AppColors.textTertiary,
                     fontWeight: FontWeight.w500,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -417,10 +417,10 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: iconColor,
                     height: 1.0,
                   ),
                 ),
@@ -428,10 +428,10 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.only(bottom: 3, left: 2),
                   child: Text(
                     unit,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF9B9B7B),
+                      color: AppColors.textTertiary,
                     ),
                   ),
                 ),
@@ -451,8 +451,12 @@ class _HomePageState extends State<HomePage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2D2D1F),
+        color: AppColors.darkBackground,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: iconColor.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
@@ -484,8 +488,8 @@ class _HomePageState extends State<HomePage> {
               },
               activeColor: Colors.white,
               inactiveThumbColor: Colors.white,
-              inactiveTrackColor: const Color(0xFF5A5A52),
-              activeTrackColor: const Color(0xFFFFA500),
+              inactiveTrackColor: AppColors.borderDark,
+              activeTrackColor: iconColor,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),

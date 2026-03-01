@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 import '../routes/app_routes.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -9,8 +10,8 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  int _currentIndex = 3; // Riwayat tab
-  int _selectedFilter = 0; // 0: Suhu, 1: Kelembapan, 2: Amonia, 3: Pakan
+  int _currentIndex = 3;
+  int _selectedFilter = 0;
 
   final List<String> _filterOptions = ['Suhu', 'Kelembapan', 'Amonia', 'Pakan'];
 
@@ -20,7 +21,6 @@ class _HistoryPageState extends State<HistoryPage> {
     });
     switch (index) {
       case 0:
-        // Home
         Navigator.pushNamedAndRemoveUntil(
           context,
           AppRoutes.home,
@@ -28,18 +28,14 @@ class _HistoryPageState extends State<HistoryPage> {
         );
         break;
       case 1:
-        // Scan
         Navigator.pushNamed(context, AppRoutes.scan);
         break;
       case 2:
-        // Riwayat/Add
         Navigator.pushNamed(context, AppRoutes.addDevice);
         break;
       case 3:
-        // Riwayat History - already on this page
         break;
       case 4:
-        // Profil
         Navigator.pushNamed(context, AppRoutes.settings);
         break;
     }
@@ -48,9 +44,9 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE8DCC8),
+      backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE8DCC8),
+        backgroundColor: AppColors.lightBackground,
         elevation: 0,
         toolbarHeight: 0,
       ),
@@ -58,37 +54,33 @@ class _HistoryPageState extends State<HistoryPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
             Container(
-              color: const Color(0xFFE8DCC8),
+              color: AppColors.lightBackground,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
-                  const Text(
+                  Text(
                     'RIWAYAT PENGGUNA',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F1F1F),
+                      color: AppColors.primaryGreen,
                       letterSpacing: 0.5,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Subtitle
-                  const Text(
+                  Text(
                     'Riwayat Database Full',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1F1F1F),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Filter Tabs
                   SizedBox(
                     height: 40,
                     child: ListView.builder(
@@ -106,7 +98,7 @@ class _HistoryPageState extends State<HistoryPage> {
                                 fontWeight: FontWeight.w500,
                                 color: isSelected
                                     ? Colors.white
-                                    : const Color(0xFF1F1F1F),
+                                    : AppColors.textPrimary,
                               ),
                             ),
                             selected: isSelected,
@@ -116,11 +108,11 @@ class _HistoryPageState extends State<HistoryPage> {
                               });
                             },
                             backgroundColor: Colors.transparent,
-                            selectedColor: const Color(0xFFC9A878),
+                            selectedColor: AppColors.primaryGreen,
                             side: BorderSide(
                               color: isSelected
-                                  ? const Color(0xFFC9A878)
-                                  : const Color(0xFF1F1F1F),
+                                  ? AppColors.primaryGreen
+                                  : AppColors.textPrimary,
                               width: 1.5,
                             ),
                             padding: const EdgeInsets.symmetric(
@@ -136,14 +128,12 @@ class _HistoryPageState extends State<HistoryPage> {
               ),
             ),
 
-            // Content Area
             Container(
-              color: const Color(0xFFE8DCC8),
+              color: AppColors.lightBackground,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
                   const SizedBox(height: 60),
-                  // Empty State
                   Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -151,15 +141,15 @@ class _HistoryPageState extends State<HistoryPage> {
                         Icon(
                           Icons.inbox_outlined,
                           size: 60,
-                          color: Colors.black26,
+                          color: AppColors.borderLight,
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'Belum ada database.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF8B8B8B),
+                            color: AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -174,106 +164,114 @@ class _HistoryPageState extends State<HistoryPage> {
         ),
       ),
 
-      // Bottom navigation bar
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.08),
               width: 1,
             ),
           ),
-          color: const Color(0xFFE8DCC8),
+          color: AppColors.lightBackground,
         ),
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: BottomNavigationBar(
-            backgroundColor: const Color(0xFFE8DCC8),
-            currentIndex: _currentIndex,
-            onTap: _handleBottomNavigation,
-            items: [
-              BottomNavigationBarItem(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: _currentIndex == 0
-                      ? BoxDecoration(
-                          color: const Color(0xFFC9A878),
-                          borderRadius: BorderRadius.circular(10),
-                        )
-                      : null,
-                  child: Icon(
-                    Icons.home_filled,
-                    color: _currentIndex == 0 ? const Color(0xFF1F1F1F) : const Color(0xFF666666),
-                    size: 24,
-                  ),
+        child: SafeArea(
+          child: Container(
+            height: 60,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(
+                  icon: Icons.home,
+                  label: 'Home',
+                  index: 0,
                 ),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(
-                  Icons.qr_code_scanner,
-                  color: _currentIndex == 1 ? const Color(0xFF1F1F1F) : const Color(0xFF888888),
-                  size: 20,
+                _buildNavItem(
+                  icon: Icons.qr_code_scanner,
+                  label: 'Scan',
+                  index: 1,
                 ),
-                label: 'Scan',
-              ),
-              BottomNavigationBarItem(
-                icon: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC9A878),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.add,
-                    color: Color(0xFF1F1F1F),
-                    size: 24,
-                  ),
+                _buildCenterNavItem(),
+                _buildNavItem(
+                  icon: Icons.history,
+                  label: 'Riwayat',
+                  index: 3,
                 ),
-                label: 'Riwayat',
-              ),
-              BottomNavigationBarItem(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: _currentIndex == 3
-                      ? BoxDecoration(
-                          color: const Color(0xFFC9A878),
-                          borderRadius: BorderRadius.circular(10),
-                        )
-                      : null,
-                  child: Icon(
-                    Icons.history,
-                    color: _currentIndex == 3 ? const Color(0xFF1F1F1F) : const Color(0xFF888888),
-                    size: 22,
-                  ),
+                _buildNavItem(
+                  icon: Icons.person_outline,
+                  label: 'Profil',
+                  index: 4,
                 ),
-                label: 'Riwayat',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(
-                  Icons.person,
-                  color: _currentIndex == 4 ? const Color(0xFF1F1F1F) : const Color(0xFF888888),
-                  size: 22,
-                ),
-                label: 'Profil',
-              ),
-            ],
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: const Color(0xFF1F1F1F),
-            unselectedItemColor: const Color(0xFF888888),
-            selectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1F1F1F),
+              ],
             ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF888888),
-            ),
-            elevation: 0,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+  }) {
+    final isSelected = _currentIndex == index;
+    
+    return GestureDetector(
+      onTap: () {
+        _handleBottomNavigation(index);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: isSelected
+            ? BoxDecoration(
+                color: AppColors.primaryGreen.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              )
+            : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isSelected 
+                  ? AppColors.primaryGreen
+                  : AppColors.textTertiary,
+            ),
+            const SizedBox(height: 1),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected 
+                    ? AppColors.primaryGreen
+                    : AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCenterNavItem() {
+    return GestureDetector(
+      onTap: () {
+        _handleBottomNavigation(2);
+      },
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: const BoxDecoration(
+          color: AppColors.primaryBlue,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 26,
         ),
       ),
     );
