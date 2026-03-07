@@ -5,10 +5,10 @@ class KandangLogo extends StatelessWidget {
   final double borderWidth;
 
   const KandangLogo({
-    Key? key,
+    super.key,
     this.size = 100,
     this.borderWidth = 8,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -96,9 +96,6 @@ class KandangLogoPainter extends CustomPainter {
     );
 
     // Draw antenna
-    const antennaStartX = 0.75;
-    const antennaStartY = 0.08;
-    
     // Antenna curve 1
     final antennaPaint = Paint()
       ..color = const Color(0xFF1565C0)

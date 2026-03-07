@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../routes/app_routes.dart';
 
-class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+class HistoryPage extends StatefulWidget {
+  const HistoryPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  State<HistoryPage> createState() => _HistoryPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
-  int _currentIndex = 4;
+class _HistoryPageState extends State<HistoryPage> {
+  int _currentIndex = 3;
+  int _selectedFilter = 0;
+
+  final List<String> _filterOptions = ['Suhu', 'Kelembapan', 'Amonia', 'Pakan'];
 
   void _handleBottomNavigation(int index) {
     setState(() {
@@ -31,40 +34,11 @@ class _SettingsPageState extends State<SettingsPage> {
         Navigator.pushNamed(context, AppRoutes.addDevice);
         break;
       case 3:
-        Navigator.pushNamed(context, AppRoutes.history);
         break;
       case 4:
+        Navigator.pushNamed(context, AppRoutes.settings);
         break;
     }
-  }
-
-  void _showLogoutConfirmation() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Konfirmasi Logout'),
-          content: const Text('Apakah Anda yakin ingin keluar?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  AppRoutes.login,
-                  (route) => false,
-                );
-              },
-              child: const Text('Logout'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -76,17 +50,18 @@ class _SettingsPageState extends State<SettingsPage> {
         elevation: 0,
         toolbarHeight: 0,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    'PROFIL PENGGUNA',
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              color: AppColors.lightBackground,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'RIWAYAT PENGGUNA',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -94,87 +69,106 @@ class _SettingsPageState extends State<SettingsPage> {
                       letterSpacing: 0.5,
                     ),
                   ),
-                ),
-                const SizedBox(height: 60),
+                  const SizedBox(height: 16),
 
-                Center(
-                  child: Container(
-                    width: 280,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(24),
+                  const Text(
+                    'Riwayat Database Full',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    height: 40,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _filterOptions.length,
+                      itemBuilder: (context, index) {
+                        final isSelected = _selectedFilter == index;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: FilterChip(
+                            label: Text(
+                              _filterOptions[index],
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedFilter = index;
+                              });
+                            },
+                            backgroundColor: Colors.transparent,
+                            selectedColor: AppColors.primaryGreen,
+                            side: BorderSide(
+                              color: isSelected
+                                  ? AppColors.primaryGreen
+                                  : AppColors.textPrimary,
+                              width: 1.5,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Container(
+              color: AppColors.lightBackground,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: const Column(
+                children: [
+                  SizedBox(height: 60),
+                  Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: AppColors.accentOrange,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 50,
-                            color: Colors.white,
-                          ),
+                        Icon(
+                          Icons.inbox_outlined,
+                          size: 60,
+                          color: AppColors.borderLight,
                         ),
-                        const SizedBox(height: 20),
-
-                        const Text(
-                          'Peternak Ayam',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
+                        SizedBox(height: 16),
                         Text(
-                          'peternak@kandang.com',
+                          'Belum ada database.',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withOpacity(0.8),
-                            fontWeight: FontWeight.w400,
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 40),
-
-                ElevatedButton.icon(
-                  onPressed: _showLogoutConfirmation,
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Logout'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 4,
-                  ),
-                  iconAlignment: IconAlignment.start,
-                ),
-              ],
+                  SizedBox(height: 60),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
 
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               width: 1,
             ),
           ),
@@ -231,7 +225,7 @@ class _SettingsPageState extends State<SettingsPage> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: isSelected
             ? BoxDecoration(
-                color: AppColors.primaryGreen.withOpacity(0.15),
+                color: AppColors.primaryGreen.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               )
             : null,

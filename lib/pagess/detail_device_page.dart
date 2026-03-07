@@ -5,9 +5,9 @@ class DetailDevicePage extends StatelessWidget {
   final String deviceName;
 
   const DetailDevicePage({
-    Key? key,
+    super.key,
     required this.deviceName,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

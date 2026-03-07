@@ -1,438 +1,247 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../routes/app_routes.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0;
-  Map<String, bool> deviceStates = {
-    'Lampu Pemanas': false,
-    'Pompa Air': false,
-    'Kipas Exhaust': false,
-  };
+  final controlItems = [
+    {
+      'icon': Icons.water_drop_rounded,
+      'title': 'Automation Pump',
+      'subtitle': 'Pompa Penyiraman Otomatis',
+      'isEnabled': true,
+    },
+    {
+      'icon': Icons.lightbulb_rounded,
+      'title': 'Lampu Penghangat',
+      'subtitle': 'Pemanas Kandang Ayam',
+      'isEnabled': false,
+    },
+    {
+      'icon': Icons.air_rounded,
+      'title': 'Kipas Exhaust',
+      'subtitle': 'Ventilasi Udara Kandang',
+      'isEnabled': true,
+    },
+    {
+      'icon': Icons.pets_rounded,
+      'title': 'Pakan',
+      'subtitle': 'Sistem Pemberian pakan',
+      'isEnabled': false,
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.lightBackground,
-        elevation: 0,
-        toolbarHeight: 0,
-      ),
-      body: SingleChildScrollView(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              color: AppColors.lightBackground,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Logo and Title Section
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Logo with Chicken and Wifi indicator
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 68,
-                            height: 68,
-                            decoration: BoxDecoration(
-                              gradient: AppColors.primaryGradient,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                'assets/images/logo.jpg',
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Center(
-                                    child: Icon(
-                                      Icons.home,
-                                      size: 38,
-                                      color: Colors.white,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: -6,
-                            right: -6,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: AppColors.primaryBlue,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.wifi,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 14),
-                      // Title
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'KANDANG',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primaryGreen,
-                                letterSpacing: 1.5,
-                                height: 1.0,
-                              ),
-                            ),
-                            Text(
-                              'PINTAR',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primaryBlue,
-                                letterSpacing: 1.5,
-                                height: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Monitoring Ternak Lebih Efisien.',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                                letterSpacing: 0.2,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
+            // KONDISI KANDANG Section
+            _buildSectionTitle('KONDISI KANDANG'),
+            const SizedBox(height: 12),
+            _buildConditionCards(),
+            const SizedBox(height: 32),
 
-                  // Monitoring Realtime Section
-                  Text(
-                    'Monitoring Realtime',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Monitoring Cards Grid
-                  GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 0.92,
-                    children: [
-                      // Suhu Card
-                      _buildMonitoringCard(
-                        icon: Icons.thermostat,
-                        label: 'Suhu',
-                        value: '28.5',
-                        unit: '°C',
-                        iconColor: AppColors.accentOrange,
-                      ),
-                      // Kelembapan Card
-                      _buildMonitoringCard(
-                        icon: Icons.water_drop,
-                        label: 'Kelembapan',
-                        value: '65',
-                        unit: '%',
-                        iconColor: AppColors.primaryBlue,
-                      ),
-                      // Amonia Card
-                      _buildMonitoringCard(
-                        icon: Icons.waves,
-                        label: 'Amonia',
-                        value: '12.4',
-                        unit: 'PPM',
-                        iconColor: AppColors.success,
-                      ),
-                      // Pakan Card
-                      _buildMonitoringCard(
-                        icon: Icons.kitchen,
-                        label: 'Pakan',
-                        value: '5.8',
-                        unit: 'KG',
-                        iconColor: AppColors.error,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Kontrol Perangkat Section
-                  Text(
-                    'Kontrol Perangkat',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Control Switches
-                  _buildControlSwitch(
-                    icon: Icons.lightbulb,
-                    label: 'Lampu Pemanas',
-                    deviceKey: 'Lampu Pemanas',
-                    iconColor: AppColors.accentOrange,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildControlSwitch(
-                    icon: Icons.water,
-                    label: 'Pompa Air',
-                    deviceKey: 'Pompa Air',
-                    iconColor: AppColors.primaryBlue,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildControlSwitch(
-                    icon: Icons.air,
-                    label: 'Kipas Exhaust',
-                    deviceKey: 'Kipas Exhaust',
-                    iconColor: AppColors.success,
-                  ),
-                  const SizedBox(height: 80),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-
-      // Bottom Navigation Bar
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: Colors.black.withOpacity(0.08),
-              width: 1,
-            ),
-          ),
-          color: AppColors.lightBackground,
-        ),
-        child: SafeArea(
-          child: Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                ),
-                _buildNavItem(
-                  icon: Icons.qr_code_scanner,
-                  label: 'Scan',
-                  index: 1,
-                ),
-                _buildCenterNavItem(),
-                _buildNavItem(
-                  icon: Icons.history,
-                  label: 'Riwayat',
-                  index: 3,
-                ),
-                _buildNavItem(
-                  icon: Icons.person_outline,
-                  label: 'Profil',
-                  index: 4,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-  }) {
-    final isSelected = _currentIndex == index;
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-        _navigateToTab(index);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: isSelected
-            ? BoxDecoration(
-                color: AppColors.primaryGreen.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              )
-            : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isSelected 
-                  ? AppColors.primaryGreen
-                  : AppColors.textTertiary,
-            ),
-            const SizedBox(height: 1),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected 
-                    ? AppColors.primaryGreen
-                    : AppColors.textTertiary,
-              ),
-            ),
+            // KONTROL KANDANG Section
+            _buildSectionTitle('KONTROL KANDANG'),
+            const SizedBox(height: 12),
+            _buildControlItems(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCenterNavItem() {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentIndex = 2;
-        });
-        _navigateToTab(2);
-      },
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: const BoxDecoration(
-          color: AppColors.primaryBlue,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-          size: 26,
-        ),
+  /// Build Section Title
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
+        letterSpacing: 0.5,
       ),
     );
   }
 
-  void _navigateToTab(int index) {
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushNamed(context, AppRoutes.scan);
-        break;
-      case 2:
-        Navigator.pushNamed(context, AppRoutes.addDevice);
-        break;
-      case 3:
-        Navigator.pushNamed(context, AppRoutes.history);
-        break;
-      case 4:
-        Navigator.pushNamed(context, AppRoutes.settings);
-        break;
-    }
+  /// Build Condition Cards (Suhu, Kelembapan, Amonia)
+  Widget _buildConditionCards() {
+    return const Row(
+      children: [
+        Expanded(
+          child: _ConditionCard(
+            icon: Icons.thermostat,
+            label: 'SUHU',
+            value: '28.5',
+            unit: '°C',
+            status: 'Alert',
+            statusColor: AppColors.statusWarning,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: _ConditionCard(
+            icon: Icons.opacity_rounded,
+            label: 'KELEMBAPAN',
+            value: '65',
+            unit: '%',
+            status: 'Normal',
+            statusColor: AppColors.statusNormal,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: _ConditionCard(
+            icon: Icons.air_rounded,
+            label: 'AMONIA',
+            value: '12.4',
+            unit: 'PPM',
+            status: 'Normal',
+            statusColor: AppColors.statusNormal,
+          ),
+        ),
+      ],
+    );
   }
 
-  Widget _buildMonitoringCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required String unit,
-    required Color iconColor,
-  }) {
+  /// Build Control Items (Automation Pump, Lampu, Kipas Exhaust, Pakan)
+  Widget _buildControlItems() {
+    return Column(
+      children: List.generate(
+        controlItems.length,
+        (index) {
+          final item = controlItems[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _ControlItem(
+              icon: item['icon'] as IconData,
+              title: item['title'] as String,
+              subtitle: item['subtitle'] as String,
+              isEnabled: item['isEnabled'] as bool,
+              onToggle: (value) {
+                setState(() {
+                  controlItems[index]['isEnabled'] = value;
+                });
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ============ CONDITION CARD WIDGET ============
+
+class _ConditionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String unit;
+  final String status;
+  final Color statusColor;
+
+  const _ConditionCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.status,
+    required this.statusColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.darkBackground,
+        color: AppColors.secondaryLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: iconColor.withOpacity(0.3),
-          width: 1,
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowColor,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Icon and Label
+          Icon(
+            icon,
+            color: AppColors.primaryGreen,
+            size: 32,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.3,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: iconColor,
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textTertiary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                unit,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          // Value
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    color: iconColor,
-                    height: 1.0,
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    shape: BoxShape.circle,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 3, left: 2),
-                  child: Text(
-                    unit,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textTertiary,
-                    ),
+                const SizedBox(width: 4),
+                Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
                   ),
                 ),
               ],
@@ -442,55 +251,95 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
 
-  Widget _buildControlSwitch({
-    required IconData icon,
-    required String label,
-    required String deviceKey,
-    required Color iconColor,
-  }) {
+// ============ CONTROL ITEM WIDGET ============
+
+class _ControlItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isEnabled;
+  final Function(bool) onToggle;
+
+  const _ControlItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isEnabled,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.darkBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: iconColor.withOpacity(0.2),
-          width: 1,
-        ),
+        color: AppColors.secondaryLight,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowColor,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 22,
-            color: iconColor,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+          // Icon Container
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: AppColors.primaryGreen,
+              size: 24,
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 12),
+
+          // Title & Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Toggle Switch
           Transform.scale(
-            scale: 0.9,
+            scale: 0.8,
             child: Switch(
-              value: deviceStates[deviceKey] ?? false,
-              onChanged: (value) {
-                setState(() {
-                  deviceStates[deviceKey] = value;
-                });
-              },
-              activeColor: Colors.white,
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: AppColors.borderDark,
-              activeTrackColor: iconColor,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              value: isEnabled,
+              onChanged: onToggle,
+              activeThumbColor: AppColors.primaryGreen,
+              activeTrackColor: AppColors.primaryGreen.withValues(alpha: 0.4),
+              inactiveTrackColor: AppColors.textTertiary.withValues(alpha: 0.3),
+              inactiveThumbColor: AppColors.textTertiary,
             ),
           ),
         ],

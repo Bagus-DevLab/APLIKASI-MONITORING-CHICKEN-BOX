@@ -12,18 +12,18 @@ class AppColors {
   static const Color accentOrange = Color(0xFFFFA500);
 
   // ============ BACKGROUND COLORS ============
-  /// Dark background for modern UI
-  static const Color darkBackground = Color(0xFF1A1A1A);
+  /// Dark brown background for header (sesuai desain)
+  static const Color darkBrown = Color(0xFF4A3728);
   
   /// Light background for content areas
-  static const Color lightBackground = Color(0xFFF5F5F5);
+  static const Color lightBackground = Color(0xFFE8E8E8);
   
-  /// Secondary light background
-  static const Color secondaryLight = Color(0xFFFAFAFA);
+  /// Secondary light background (white cards)
+  static const Color secondaryLight = Color(0xFFFFFFFF);
 
   // ============ TEXT COLORS ============
-  /// Primary text color (dark gray)
-  static const Color textPrimary = Color(0xFF212121);
+  /// Primary text color (dark gray/brown)
+  static const Color textPrimary = Color(0xFF2D2D2D);
   
   /// Secondary text color (medium gray)
   static const Color textSecondary = Color(0xFF666666);
@@ -31,51 +31,58 @@ class AppColors {
   /// Tertiary text color (light gray)
   static const Color textTertiary = Color(0xFF999999);
   
-  /// Text color for light backgrounds
+  /// Text color for dark backgrounds
   static const Color textLight = Color(0xFFFFFFFF);
 
-  // ============ SEMANTIC COLORS ============
-  /// Success state - Green
-  static const Color success = Color(0xFF4CAF50);
+  // ============ STATUS COLORS ============
+  /// Normal status - Green
+  static const Color statusNormal = Color(0xFF4CAF50);
   
-  /// Warning state - Amber
-  static const Color warning = Color(0xFFFFC107);
+  /// Warning status - Orange/Amber
+  static const Color statusWarning = Color(0xFFFF9800);
   
-  /// Error state - Red
-  static const Color error = Color(0xFFF44336);
+  /// Alert/Error status - Red
+  static const Color statusAlert = Color(0xFFF44336);
   
-  /// Info state - Blue
-  static const Color info = Color(0xFF2196F3);
+  /// Info status - Light Orange
+  static const Color statusInfo = Color(0xFFFFA500);
 
   // ============ BORDER & DIVIDER ============
   /// Light gray border
-  static const Color borderLight = Color(0xFFE0E0E0);
+  static const Color borderLight = Color(0xFFD9D9D9);
   
   /// Dark gray border
   static const Color borderDark = Color(0xFF424242);
 
+  // ============ ERROR & SPECIAL COLORS ============
+  /// Error color
+  static const Color error = statusAlert;
+  
+  /// Dark background color (for header)
+  static const Color darkBackground = darkBrown;
+
   // ============ SHADOW COLORS ============
-  static Color shadowColor = Colors.black.withOpacity(0.1);
-  static Color shadowColorDark = Colors.black.withOpacity(0.2);
+  static Color shadowColor = Colors.black.withValues(alpha: 0.1);
+  static Color shadowColorDark = Colors.black.withValues(alpha: 0.15);
 
   // ============ GRADIENT COMBINATIONS ============
-  /// Green to Blue gradient (Agriculture to IoT)
+  /// Brown to Green gradient (untuk header)
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primaryGreen, primaryBlue],
+    colors: [darkBrown, Color(0xFF6B5344)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  /// Blue to Green gradient (IoT to Agriculture)
-  static const LinearGradient secondaryGradient = LinearGradient(
-    colors: [primaryBlue, primaryGreen],
+  /// Green gradient
+  static const LinearGradient greenGradient = LinearGradient(
+    colors: [primaryGreen, Color(0xFF1B5E20)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  /// Full spectrum gradient (Agriculture, IoT, Energy)
-  static const LinearGradient fullSpectrum = LinearGradient(
-    colors: [primaryGreen, primaryBlue, accentOrange],
+  /// Blue gradient
+  static const LinearGradient blueGradient = LinearGradient(
+    colors: [primaryBlue, Color(0xFF0D47A1)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -84,33 +91,29 @@ class AppColors {
 /// Material Color Scheme for Kandang Pintar
 /// Use this in your MaterialApp theme
 class AppColorScheme {
-  static ColorScheme lightColorScheme = ColorScheme.light(
+  static ColorScheme lightColorScheme = const ColorScheme.light(
     primary: AppColors.primaryGreen,
-    secondary: AppColors.primaryBlue,
-    tertiary: AppColors.accentOrange,
-    background: AppColors.lightBackground,
+    secondary: AppColors.accentOrange,
+    tertiary: AppColors.primaryBlue,
     surface: AppColors.secondaryLight,
-    error: AppColors.error,
+    error: AppColors.statusAlert,
     onPrimary: Colors.white,
     onSecondary: Colors.white,
     onTertiary: Colors.white,
-    onBackground: AppColors.textPrimary,
     onSurface: AppColors.textPrimary,
     onError: Colors.white,
   );
 
-  static ColorScheme darkColorScheme = ColorScheme.dark(
+  static ColorScheme darkColorScheme = const ColorScheme.dark(
     primary: AppColors.primaryGreen,
-    secondary: AppColors.primaryBlue,
-    tertiary: AppColors.accentOrange,
-    background: AppColors.darkBackground,
-    surface: Color(0xFF2A2A2A),
-    error: AppColors.error,
+    secondary: AppColors.accentOrange,
+    tertiary: AppColors.primaryBlue,
+    surface: Color(0xFF3A3A3A),
+    error: AppColors.statusAlert,
     onPrimary: Colors.white,
     onSecondary: Colors.white,
     onTertiary: Colors.white,
-    onBackground: AppColors.lightBackground,
-    onSurface: AppColors.lightBackground,
+    onSurface: Colors.white,
     onError: Colors.white,
   );
 }

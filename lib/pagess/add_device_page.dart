@@ -3,7 +3,7 @@ import '../constants/app_colors.dart';
 import '../routes/app_routes.dart';
 
 class AddDevicePage extends StatefulWidget {
-  const AddDevicePage({Key? key}) : super(key: key);
+  const AddDevicePage({super.key});
 
   @override
   State<AddDevicePage> createState() => _AddDevicePageState();
@@ -82,7 +82,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 'TAMBAHKAN ALAT MANUAL',
                 style: TextStyle(
                   fontSize: 24,
@@ -93,7 +93,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
               ),
               const SizedBox(height: 32),
 
-              Text(
+              const Text(
                 'Input ID Kandang',
                 style: TextStyle(
                   fontSize: 16,
@@ -102,7 +102,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Masukkan ID serial number yang tertera distiker alat.',
                 style: TextStyle(
                   fontSize: 12,
@@ -112,7 +112,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
               ),
               const SizedBox(height: 16),
 
-              Text(
+              const Text(
                 'ID Alat (Serial Number)',
                 style: TextStyle(
                   fontSize: 13,
@@ -125,7 +125,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
                 controller: _deviceIdController,
                 decoration: InputDecoration(
                   hintText: 'Contoh: ESP32-A1B2C3',
-                  hintStyle: TextStyle(
+                  hintStyle: const TextStyle(
                     color: AppColors.textTertiary,
                     fontSize: 13,
                   ),
@@ -154,7 +154,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
               ),
               const SizedBox(height: 24),
 
-              Text(
+              const Text(
                 'Nama Kandang',
                 style: TextStyle(
                   fontSize: 13,
@@ -167,7 +167,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
                 controller: _deviceNameController,
                 decoration: InputDecoration(
                   hintText: 'Contoh: Kandang Ayam Boiler',
-                  hintStyle: TextStyle(
+                  hintStyle: const TextStyle(
                     color: AppColors.textTertiary,
                     fontSize: 13,
                   ),
@@ -228,7 +228,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               width: 1,
             ),
           ),
@@ -285,7 +285,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: isSelected
             ? BoxDecoration(
-                color: AppColors.primaryGreen.withOpacity(0.15),
+                color: AppColors.primaryGreen.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               )
             : null,

@@ -3,7 +3,7 @@ import '../constants/app_colors.dart';
 import '../routes/app_routes.dart';
 
 class ScanPage extends StatefulWidget {
-  const ScanPage({Key? key}) : super(key: key);
+  const ScanPage({super.key});
 
   @override
   State<ScanPage> createState() => _ScanPageState();
@@ -47,7 +47,7 @@ class _ScanPageState extends State<ScanPage> {
       appBar: AppBar(
         backgroundColor: AppColors.lightBackground,
         elevation: 0,
-        title: Text(
+        title: const Text(
           'Scan',
           style: TextStyle(
             color: AppColors.textPrimary,
@@ -56,7 +56,7 @@ class _ScanPageState extends State<ScanPage> {
           ),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pushNamedAndRemoveUntil(
             context,
             AppRoutes.home,
@@ -80,7 +80,7 @@ class _ScanPageState extends State<ScanPage> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -110,7 +110,7 @@ class _ScanPageState extends State<ScanPage> {
                   
                   if (isScanning) const SizedBox(height: 24),
                   
-                  Text(
+                  const Text(
                     'RIWAYAT SENSOR',
                     style: TextStyle(
                       fontSize: 16,
@@ -136,7 +136,7 @@ class _ScanPageState extends State<ScanPage> {
                     isScanning 
                         ? 'Siap Mencari'
                         : 'Bluetooth Mati',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -150,7 +150,7 @@ class _ScanPageState extends State<ScanPage> {
                         ? 'Pastikan alat sudah di colok ke listrik'
                         : 'Mohon nyalakan Bluetooth untuk mencari alat',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
@@ -209,7 +209,7 @@ class _ScanPageState extends State<ScanPage> {
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               width: 1,
             ),
           ),
@@ -266,7 +266,7 @@ class _ScanPageState extends State<ScanPage> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: isSelected
             ? BoxDecoration(
-                color: AppColors.primaryGreen.withOpacity(0.15),
+                color: AppColors.primaryGreen.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               )
             : null,

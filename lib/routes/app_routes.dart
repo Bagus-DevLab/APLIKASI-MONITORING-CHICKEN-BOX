@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 // import '../pages/splash_page.dart';
-import '../pages/login_page.dart';
-import '../pages/home_page.dart';
-import '../pages/scan_page.dart';
-import '../pages/add_device_page.dart';
-import '../pages/history_page.dart';
-import '../pages/detail_device_page.dart';
-import '../pages/settings_page.dart';
+import '../pagess/login_page.dart';
+import '../pagess/home_page.dart';
+import '../pagess/scan_page.dart';
+import '../pagess/add_device_page.dart';
+import '../pagess/history_page.dart';
+import '../pagess/detail_device_page.dart';
+import '../pagess/settings_page.dart';
 
 class AppRoutes {
   // Route names
@@ -32,7 +32,7 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const LoginPage());
       
       case home:
-        return MaterialPageRoute(builder: (_) => const HomePage());
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
       
       case scan:
         return MaterialPageRoute(builder: (_) => const ScanPage());

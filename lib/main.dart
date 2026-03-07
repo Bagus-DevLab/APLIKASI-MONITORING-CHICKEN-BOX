@@ -7,7 +7,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,17 +26,15 @@ class MyApp extends StatelessWidget {
   static ThemeData _buildLightTheme() {
     return ThemeData(
       // Color Scheme
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.primaryGreen,
         secondary: AppColors.primaryBlue,
         tertiary: AppColors.accentOrange,
-        background: AppColors.lightBackground,
-        surface: Colors.white,
+        surface: AppColors.lightBackground,
         error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onTertiary: Colors.white,
-        onBackground: AppColors.textPrimary,
         onSurface: AppColors.textPrimary,
         onError: Colors.white,
       ),
@@ -45,17 +43,17 @@ class MyApp extends StatelessWidget {
       useMaterial3: true,
 
       // AppBar Theme
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.darkBackground,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
 
       // Elevated Button Theme
@@ -114,7 +112,7 @@ class MyApp extends StatelessWidget {
       ),
 
       // Floating Action Button Theme
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 4,
@@ -169,7 +167,7 @@ class MyApp extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
         hintStyle: TextStyle(
-          color: AppColors.textSecondary.withOpacity(0.7),
+          color: AppColors.textSecondary.withValues(alpha: 0.7),
           fontSize: 14,
         ),
         prefixIconColor: WidgetStateColor.resolveWith(
@@ -203,7 +201,7 @@ class MyApp extends StatelessWidget {
       // Chip Theme
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.lightBackground,
-        disabledColor: AppColors.textTertiary.withOpacity(0.38),
+        disabledColor: AppColors.textTertiary.withValues(alpha: 0.38),
         selectedColor: AppColors.primaryGreen,
         secondarySelectedColor: AppColors.primaryBlue,
         padding: const EdgeInsets.symmetric(
@@ -391,9 +389,9 @@ class MyApp extends StatelessWidget {
         trackColor: WidgetStateColor.resolveWith(
           (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
-              return AppColors.primaryBlue.withOpacity(0.5);
+              return AppColors.primaryBlue.withValues(alpha: 0.5);
             }
-            return Colors.grey.withOpacity(0.3);
+            return Colors.grey.withValues(alpha: 0.3);
           },
         ),
       ),
@@ -455,22 +453,20 @@ class MyApp extends StatelessWidget {
   /// Build Dark Theme (Optional)
   static ThemeData _buildDarkTheme() {
     return ThemeData(
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: AppColors.primaryGreen,
         secondary: AppColors.primaryBlue,
         tertiary: AppColors.accentOrange,
-        background: AppColors.darkBackground,
-        surface: const Color(0xFF2A2A2A),
+        surface: Color(0xFF2A2A2A),
         error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onTertiary: Colors.white,
-        onBackground: Colors.white,
         onSurface: Colors.white,
         onError: Colors.white,
       ),
       useMaterial3: true,
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.darkBackground,
         foregroundColor: Colors.white,
         elevation: 0,
