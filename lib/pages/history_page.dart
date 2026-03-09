@@ -364,7 +364,7 @@ class _HistoryPageState extends State<HistoryPage> {
     final activities = [
       {
         'icon': Icons.warning_rounded,
-        'iconColor': AppColors.statusWarning,
+        'iconColor': const Color(0xFFE74C3C),
         'title': 'Amonia Melebihi Batas',
         'description':
             'Kadar amonia mencapai 18.2 ppm, melebihi batas aman 15 ppm.',
@@ -379,21 +379,21 @@ class _HistoryPageState extends State<HistoryPage> {
       },
       {
         'icon': Icons.lightbulb_rounded,
-        'iconColor': AppColors.accentOrange,
+        'iconColor': const Color(0xFFFFB300),
         'title': 'Lampu Penghangat Aktif',
         'description':
             'Lampu penghangat dinyalakan untuk menjaga suhu kandang.',
         'time': '08:30 - Hari ini',
       },
       {
-        'icon': Icons.pets_rounded,
-        'iconColor': AppColors.primaryGreen,
+        'icon': Icons.inventory_2_rounded,
+        'iconColor': AppColors.accentOrange,
         'title': 'Pakan Otomatis Berjalan',
         'description': 'Sistem pakan otomatis berjalan sesuai jadwal pagi.',
         'time': '07:00 - Hari ini',
       },
       {
-        'icon': Icons.opacity_rounded,
+        'icon': Icons.water_drop_rounded,
         'iconColor': AppColors.primaryBlue,
         'title': 'Pompa Dimatikan',
         'description': 'Pompa penyiram dimatikan oleh pengguna.',
@@ -401,7 +401,7 @@ class _HistoryPageState extends State<HistoryPage> {
       },
       {
         'icon': Icons.thermostat_rounded,
-        'iconColor': AppColors.statusWarning,
+        'iconColor': const Color(0xFFE74C3C),
         'title': 'Suhu Meningkat',
         'description': 'Suhu kandang naik ke 28°C, mendekati batas atas.',
         'time': '15:00 - Hari ini',

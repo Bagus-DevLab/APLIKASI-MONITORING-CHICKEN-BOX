@@ -3,7 +3,7 @@ import 'app_colors.dart';
 
 // ============ FLOATING NAVBAR COMPONENT ============
 
-class FloatingNavBar extends StatefulWidget {
+class FloatingNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onItemSelected;
 
@@ -14,65 +14,82 @@ class FloatingNavBar extends StatefulWidget {
   });
 
   @override
-  State<FloatingNavBar> createState() => _FloatingNavBarState();
-}
-
-class _FloatingNavBarState extends State<FloatingNavBar> {
-  @override
   Widget build(BuildContext context) {
-    return Positioned(
-      bottom: 20,
-      left: 20,
-      right: 20,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadowColorDark,
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                isSelected: widget.currentIndex == 0,
-                onTap: () => widget.onItemSelected(0),
-              ),
-              _NavItem(
-                icon: Icons.dashboard_customize_rounded,
-                label: 'Perangkat',
-                isSelected: widget.currentIndex == 1,
-                onTap: () => widget.onItemSelected(1),
-              ),
-              _NavItem(
-                icon: Icons.history_rounded,
-                label: 'Riwayat',
-                isSelected: widget.currentIndex == 2,
-                onTap: () => widget.onItemSelected(2),
-              ),
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profil',
-                isSelected: widget.currentIndex == 3,
-                onTap: () => widget.onItemSelected(3),
-              ),
-            ],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12, left: 12, right: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 2,
           ),
-        ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _NavItem(
+            icon: Icons.home_rounded,
+            label: 'Home',
+            isSelected: currentIndex == 0,
+            onTap: () => onItemSelected(0),
+          ),
+          _NavItem(
+            icon: Icons.grid_view_rounded,
+            label: 'Perangkat',
+            isSelected: currentIndex == 1,
+            onTap: () => onItemSelected(1),
+          ),
+          // ===== TOMBOL SCAN DI TENGAH (TIDAK EXPANDED) =====
+          GestureDetector(
+            onTap: () => onItemSelected(2),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+          _NavItem(
+            icon: Icons.history_rounded,
+            label: 'Riwayat',
+            isSelected: currentIndex == 3,
+            onTap: () => onItemSelected(3),
+          ),
+          _NavItem(
+            icon: Icons.person_rounded,
+            label: 'Profil',
+            isSelected: currentIndex == 4,
+            onTap: () => onItemSelected(4),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ============ NAVBAR ITEM ============
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
@@ -89,37 +106,39 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Item navbar biasa
     return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          splashColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-          highlightColor: Colors.transparent,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  color: isSelected ? AppColors.primaryGreen : AppColors.textTertiary,
-                  size: 24,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isSelected
+                    ? AppColors.primaryGreen
+                    : const Color(0xFF9E9E9E),
+                size: 22,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? AppColors.primaryGreen
+                      : const Color(0xFF9E9E9E),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? AppColors.primaryGreen : AppColors.textTertiary,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ),
@@ -165,7 +184,6 @@ class KandangAppBar extends StatelessWidget implements PreferredSizeWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // Profile Section
               CircleAvatar(
                 radius: 28,
                 backgroundImage: userImageUrl.startsWith('http')
@@ -173,7 +191,6 @@ class KandangAppBar extends StatelessWidget implements PreferredSizeWidget {
                     : AssetImage(userImageUrl) as ImageProvider,
               ),
               const SizedBox(width: 12),
-              // User Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +216,6 @@ class KandangAppBar extends StatelessWidget implements PreferredSizeWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    // Status Badge
                     Container(
                       decoration: BoxDecoration(
                         color: isOnline
@@ -208,9 +224,7 @@ class KandangAppBar extends StatelessWidget implements PreferredSizeWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
+                          horizontal: 10, vertical: 3),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -237,7 +251,6 @@ class KandangAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ],
                 ),
               ),
-              // Notification Button
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),

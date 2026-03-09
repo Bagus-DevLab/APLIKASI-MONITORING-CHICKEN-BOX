@@ -15,24 +15,28 @@ class _HomePageState extends State<HomePage> {
       'title': 'Automation Pump',
       'subtitle': 'Pompa Penyiraman Otomatis',
       'isEnabled': true,
+      'color': const Color(0xFF2196F3), // Blue
     },
     {
       'icon': Icons.lightbulb_rounded,
       'title': 'Lampu Penghangat',
       'subtitle': 'Pemanas Kandang Ayam',
       'isEnabled': false,
+      'color': const Color(0xFFFFC107), // Yellow
     },
     {
-      'icon': Icons.air_rounded,
+      'icon': Icons.wind_power_rounded,
       'title': 'Kipas Exhaust',
       'subtitle': 'Ventilasi Udara Kandang',
       'isEnabled': true,
+      'color': const Color(0xFF2196F3), // Blue
     },
     {
-      'icon': Icons.pets_rounded,
+      'icon': Icons.grain_rounded,
       'title': 'Pakan',
       'subtitle': 'Sistem Pemberian pakan',
       'isEnabled': false,
+      'color': const Color(0xFFFF9800), // Orange
     },
   ];
 
@@ -40,19 +44,19 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // KONDISI KANDANG Section
             _buildSectionTitle('KONDISI KANDANG'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildConditionCards(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
 
             // KONTROL KANDANG Section
             _buildSectionTitle('KONTROL KANDANG'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildControlItems(),
           ],
         ),
@@ -85,6 +89,7 @@ class _HomePageState extends State<HomePage> {
             unit: '°C',
             status: 'Alert',
             statusColor: AppColors.statusWarning,
+            iconColor: Color(0xFFFF6B35), // Orange/Red
           ),
         ),
         SizedBox(width: 12),
@@ -96,6 +101,7 @@ class _HomePageState extends State<HomePage> {
             unit: '%',
             status: 'Normal',
             statusColor: AppColors.statusNormal,
+            iconColor: Color(0xFF2196F3), // Blue
           ),
         ),
         SizedBox(width: 12),
@@ -107,6 +113,7 @@ class _HomePageState extends State<HomePage> {
             unit: 'PPM',
             status: 'Normal',
             statusColor: AppColors.statusNormal,
+            iconColor: Color(0xFF4CAF50), // Green
           ),
         ),
       ],
@@ -121,12 +128,13 @@ class _HomePageState extends State<HomePage> {
         (index) {
           final item = controlItems[index];
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 10),
             child: _ControlItem(
               icon: item['icon'] as IconData,
               title: item['title'] as String,
               subtitle: item['subtitle'] as String,
               isEnabled: item['isEnabled'] as bool,
+              color: item['color'] as Color,
               onToggle: (value) {
                 setState(() {
                   controlItems[index]['isEnabled'] = value;
@@ -149,6 +157,7 @@ class _ConditionCard extends StatelessWidget {
   final String unit;
   final String status;
   final Color statusColor;
+  final Color iconColor;
 
   const _ConditionCard({
     required this.icon,
@@ -157,15 +166,16 @@ class _ConditionCard extends StatelessWidget {
     required this.unit,
     required this.status,
     required this.statusColor,
+    required this.iconColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.secondaryLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadowColor,
@@ -179,21 +189,21 @@ class _ConditionCard extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: AppColors.primaryGreen,
-            size: 32,
+            color: iconColor,
+            size: 26,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
               color: AppColors.textSecondary,
-              letterSpacing: 0.3,
+              letterSpacing: 0.2,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -217,9 +227,9 @@ class _ConditionCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
@@ -260,6 +270,7 @@ class _ControlItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool isEnabled;
+  final Color color;
   final Function(bool) onToggle;
 
   const _ControlItem({
@@ -267,6 +278,7 @@ class _ControlItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.isEnabled,
+    required this.color,
     required this.onToggle,
   });
 
@@ -289,19 +301,19 @@ class _ControlItem extends StatelessWidget {
         children: [
           // Icon Container
           Container(
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: AppColors.primaryGreen,
-              size: 24,
+              color: color,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
           // Title & Subtitle
           Expanded(
@@ -312,16 +324,16 @@ class _ControlItem extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w400,
                     color: AppColors.textSecondary,
                   ),
@@ -336,8 +348,8 @@ class _ControlItem extends StatelessWidget {
             child: Switch(
               value: isEnabled,
               onChanged: onToggle,
-              activeThumbColor: AppColors.primaryGreen,
-              activeTrackColor: AppColors.primaryGreen.withValues(alpha: 0.4),
+              activeThumbColor: Colors.white,
+              activeTrackColor: color,
               inactiveTrackColor: AppColors.textTertiary.withValues(alpha: 0.3),
               inactiveThumbColor: AppColors.textTertiary,
             ),

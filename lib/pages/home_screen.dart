@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
 import '../constants/floating_navbar.dart';
 import 'home_page.dart';
 import 'devices_page.dart';
+import 'scan_page.dart';
 import 'history_page.dart';
 import 'profile_page.dart';
 
@@ -19,157 +19,164 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _currentIndex == 0
-          ? KandangAppBar(
-              userName: 'Hai, Dafri',
-              userRole: 'Salamat Pagi',
-              userImageUrl: 'assets/images/profil.jpg',
-              isOnline: true,
-              onNotificationTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Notification tapped!')),
-                );
-              },
-              notificationCount: 1,
-            )
-          : null,
+      appBar: _currentIndex == 0 ? _buildAppBar() : null,
       body: Column(
         children: [
-          // Main Content - Scrollable
-          Expanded(
-            child: _buildPageContent(),
-          ),
+          Expanded(child: _buildPageContent()),
 
           // Fixed Floating NavBar
-          Container(
-            margin: const EdgeInsets.only(
-              bottom: 20,
-              left: 20,
-              right: 20,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadowColorDark,
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _NavItem(
-                    icon: Icons.home_rounded,
-                    label: 'Home',
-                    isSelected: _currentIndex == 0,
-                    onTap: () => setState(() => _currentIndex = 0),
-                  ),
-                  _NavItem(
-                    icon: Icons.dashboard_customize_rounded,
-                    label: 'Perangkat',
-                    isSelected: _currentIndex == 1,
-                    onTap: () => setState(() => _currentIndex = 1),
-                  ),
-                  _NavItem(
-                    icon: Icons.history_rounded,
-                    label: 'Riwayat',
-                    isSelected: _currentIndex == 2,
-                    onTap: () => setState(() => _currentIndex = 2),
-                  ),
-                  _NavItem(
-                    icon: Icons.person_rounded,
-                    label: 'Profil',
-                    isSelected: _currentIndex == 3,
-                    onTap: () => setState(() => _currentIndex = 3),
-                  ),
-                ],
-              ),
-            ),
+          FloatingNavBar(
+            currentIndex: _currentIndex,
+            onItemSelected: (index) {
+              setState(() => _currentIndex = index);
+            },
           ),
         ],
       ),
     );
   }
 
-  /// Build the appropriate page content based on current index
-  Widget _buildPageContent() {
-    switch (_currentIndex) {
-      case 0:
-        return const HomePage();
-      case 1:
-        return const DevicesPage();
-      case 2:
-        return const HistoryPage();
-      case 3:
-        return const ProfilePage();
-      default:
-        return const HomePage();
-    }
-  }
-}
-
-// ============ NAVBAR ITEM WIDGET ============
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          splashColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-          highlightColor: Colors.transparent,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  color: isSelected
-                      ? AppColors.primaryGreen
-                      : AppColors.textTertiary,
-                  size: 24,
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFF4A3728),
+      elevation: 0,
+      toolbarHeight: 80,
+      automaticallyImplyLeading: false,
+      flexibleSpace: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            // Profile Picture
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/profil.jpg'),
+                  fit: BoxFit.cover,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected
-                        ? AppColors.primaryGreen
-                        : AppColors.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 14),
+            
+            // Greeting & Name
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Selamat Pagi',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFFD4A574),
+                      height: 1.0,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  const Text(
+                    'Hai, Dafri',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Status Badge (Compact)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4CAF50),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  const Text(
+                    'ONLINE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            
+            // Notification Icon
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                // Notification Badge
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE74C3C),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    '1',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      height: 1.0,
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildPageContent() {
+    switch (_currentIndex) {
+      case 0: return const HomePage();
+      case 1: return const DevicesPage();
+      case 2: return const ScanPage();
+      case 3: return const HistoryPage();
+      case 4: return const ProfilePage();
+      default: return const HomePage();
+    }
   }
 }
