@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/app_colors.dart';
+// TODO: Jangan lupa import halaman Bluetooth kamu di sini, sesuaikan path-nya
+// import 'home_screen_ble.dart';
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key});
@@ -8,12 +13,13 @@ class ScanPage extends StatefulWidget {
   State<ScanPage> createState() => _ScanPageState();
 }
 
-class _ScanPageState extends State<ScanPage>
-    with SingleTickerProviderStateMixin {
+class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin {
   late AnimationController _scanLineController;
   late Animation<double> _scanLineAnimation;
   bool _isFlashOn = false;
   bool _isScanning = true;
+
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -34,6 +40,7 @@ class _ScanPageState extends State<ScanPage>
     super.dispose();
   }
 
+  // ... (KODE _showManualInputDialog TETAP SAMA SEPERTI MILIKMU) ...
   void _showManualInputDialog() {
     final TextEditingController idController = TextEditingController();
     showModalBottomSheet(
@@ -54,7 +61,6 @@ class _ScanPageState extends State<ScanPage>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle bar
               Center(
                 child: Container(
                   width: 40,
@@ -87,7 +93,7 @@ class _ScanPageState extends State<ScanPage>
                 controller: idController,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'Contoh: ESP32-ABCD1234',
+                  hintText: 'Contoh: 44:1D:64:BE:22:08',
                   hintStyle: const TextStyle(
                     color: AppColors.textTertiary,
                     fontSize: 14,
@@ -117,8 +123,8 @@ class _ScanPageState extends State<ScanPage>
                 child: ElevatedButton(
                   onPressed: () {
                     if (idController.text.trim().isNotEmpty) {
-                      Navigator.pop(context);
-                      _onDeviceFound(idController.text.trim());
+                      Navigator.pop(context); // Tutup bottom sheet
+                      _processClaimDevice(idController.text.trim()); // Panggil fungsi klaim
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -147,8 +153,108 @@ class _ScanPageState extends State<ScanPage>
     );
   }
 
-  void _onDeviceFound(String deviceId) {
+  // --- LOGIKA BARU UNTUK KLAIM API ---
+  Future<void> _processClaimDevice(String macAddress) async {
     setState(() => _isScanning = false);
+
+    // 1. Minta user masukin Nama Kandang dulu
+    String? kandangName = await _showNameDialog();
+    if (kandangName == null || kandangName.isEmpty) {
+      setState(() => _isScanning = true);
+      return; // Batal kalau nama kosong
+    }
+
+    // Tampilkan loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final token = await _secureStorage.read(key: 'jwt_token');
+
+      // 2. Tembak API Claim FastAPI
+      final response = await http.post(
+        Uri.parse('https://api.pcb.my.id/devices/claim'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'mac_address': macAddress,
+          'name': kandangName,
+        }),
+      );
+
+      Navigator.pop(context); // Tutup loading
+
+      if (response.statusCode == 200) {
+        // SUKSES KLAIM -> Tampilkan pop-up sukses dan navigasi ke BLE
+        _showSuccessAndNavigateDialog(macAddress, kandangName);
+      } else {
+        // GAGAL KLAIM (Misal udah diklaim orang, atau format MAC salah)
+        final errorData = jsonDecode(response.body);
+        _showErrorDialog(errorData['detail'] ?? 'Gagal mengklaim perangkat');
+      }
+    } catch (e) {
+      Navigator.pop(context); // Tutup loading
+      _showErrorDialog('Terjadi kesalahan jaringan: $e');
+    }
+  }
+
+  // Dialog untuk meminta nama kandang
+  Future<String?> _showNameDialog() {
+    final TextEditingController nameController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Beri Nama Kandang', style: TextStyle(fontSize: 18)),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            hintText: 'Misal: Kandang Ayam DOC A',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, nameController.text.trim()),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Dialog Error
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Gagal', style: TextStyle(color: AppColors.error)),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _isScanning = true);
+            },
+            child: const Text('Tutup', style: TextStyle(color: AppColors.primaryGreen)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Dialog Sukses yang menyambungkan ke Setup WiFi Bluetooth
+  void _showSuccessAndNavigateDialog(String macAddress, String name) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -165,51 +271,58 @@ class _ScanPageState extends State<ScanPage>
                 color: AppColors.primaryGreen.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.primaryGreen,
-                size: 40,
-              ),
+              child: const Icon(Icons.check_circle_rounded, color: AppColors.primaryGreen, size: 40),
             ),
             const SizedBox(height: 16),
             const Text(
-              'Perangkat Ditemukan!',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+              'Berhasil Ditambahkan!',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
-              deviceId,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
+              'Kandang "$name" telah terdaftar di akunmu.',
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+
+            // Tombol 1: Setup WiFi via BLE (Ke halaman HomeScreen BLE kamu)
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pop(context);
-                  setState(() => _isScanning = true);
+                  Navigator.pop(context); // Tutup dialog
+                  // TODO: Aktifkan navigasi ke halaman Bluetooth kamu
+                  /*
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()), // Ganti HomeScreen dengan nama class BLE kamu
+                  );
+                  */
                 },
+                icon: const Icon(Icons.bluetooth_rounded, size: 20),
+                label: const Text('Setup WiFi Perangkat'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
+                  backgroundColor: AppColors.primaryBlue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Selesai',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Tombol 2: Selesai (Langsung balik ke Dashboard utama)
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Tutup dialog
+                  Navigator.pop(context); // Kembali ke Dashboard
+                },
+                style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+                child: const Text('Alat sudah terhubung ke WiFi', style: TextStyle(fontSize: 13)),
               ),
             ),
           ],
