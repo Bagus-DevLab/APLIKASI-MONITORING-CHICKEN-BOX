@@ -1,13 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'constants/app_colors.dart';
 import 'routes/app_routes.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  // 1. Wajib dipanggil sebelum runApp jika ada proses async (seperti baca storage)
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Baca token dari penyimpanan lokal HP
+  const secureStorage = FlutterSecureStorage();
+  final String? token = await secureStorage.read(key: 'jwt_token');
+
+  // 3. Tentukan halaman pertama secara dinamis
+  // Jika token ada (user sudah login), langsung ke Home. Jika tidak, ke Login.
+  final String initialRoute = (token != null && token.isNotEmpty)
+      ? AppRoutes.home
+      : AppRoutes.login;
+
+  // 4. Jalankan aplikasi dengan rute awal yang sudah ditentukan
+  runApp(MyApp(initialRoute: initialRoute));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+
+  // Menerima initialRoute dari fungsi main
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +34,10 @@ class MyApp extends StatelessWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: ThemeMode.light, // Ubah ke ThemeMode.system jika ingin ikuti device setting
-      initialRoute: AppRoutes.login,
+
+      // 5. Gunakan rute dinamis di sini
+      initialRoute: initialRoute,
+
       onGenerateRoute: AppRoutes.generateRoute,
       debugShowCheckedModeBanner: false,
     );
@@ -171,7 +192,7 @@ class MyApp extends StatelessWidget {
           fontSize: 14,
         ),
         prefixIconColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.focused)) {
               return AppColors.primaryGreen;
             }
@@ -179,7 +200,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         suffixIconColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.focused)) {
               return AppColors.primaryGreen;
             }
@@ -379,7 +400,7 @@ class MyApp extends StatelessWidget {
       // Switch Theme
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryBlue;
             }
@@ -387,7 +408,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         trackColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryBlue.withValues(alpha: 0.5);
             }
@@ -399,7 +420,7 @@ class MyApp extends StatelessWidget {
       // Checkbox Theme
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryGreen;
             }
@@ -407,7 +428,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         checkColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             return Colors.white;
           },
         ),
@@ -416,7 +437,7 @@ class MyApp extends StatelessWidget {
       // Radio Theme
       radioTheme: RadioThemeData(
         fillColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryGreen;
             }

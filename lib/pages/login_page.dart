@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../routes/app_routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -9,6 +13,96 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  bool _isLoading = false;
+
+  // Inisialisasi Google Sign In dan Secure Storage
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email'],
+    serverClientId: '848733779686-k8sauag17kg6d0e2g9g5k37fi0op916r.apps.googleusercontent.com',
+  );
+
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // 1. Mulai proses Google Sign-In
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      // Kalau user batalin login (tutup popup Google)
+      if (googleUser == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 2. Dapatkan authentication details (termasuk idToken)
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Gagal mendapatkan token dari Google.');
+      }
+
+      // 3. Kirim idToken ke backend FastAPI
+      // UBAH DOMAIN DI SINI NANTI SESUAI KEBUTUHAN
+      final response = await http.post(
+        Uri.parse('https://api.pcb.my.id/auth/google/login'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'id_token': idToken,
+        }),
+      );
+
+      // 4. Cek response dari backend
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+
+        // Sesuaikan key 'access_token' dengan format res
+        // ponse FastAPI kamu
+        final String backendToken = responseData['access_token'];
+
+        // 5. Simpan token dengan aman
+        await _secureStorage.write(key: 'jwt_token', value: backendToken);
+
+        // 6. Pindah ke halaman Home
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+        }
+      } else {
+        // Backend menolak login atau token tidak valid
+        throw Exception('Gagal autentikasi di server. Status: ${response.statusCode}');
+      }
+
+    } catch (error) {
+      // Handle semua jenis error (koneksi, server down, dll)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $error'),
+            backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // Sign out dari Google agar user bisa coba pilih akun lagi
+        await _googleSignIn.signOut();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -33,7 +127,6 @@ class _LoginPageState extends State<LoginPage> {
                       // Logo and Title Group
                       Column(
                         children: [
-                          // Logo Image with IoT indicator
                           Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -59,8 +152,7 @@ class _LoginPageState extends State<LoginPage> {
                                       return Container(
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(20),
                                         ),
                                         child: const Center(
                                           child: Icon(
@@ -74,7 +166,6 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ),
-                              // IoT WiFi Indicator
                               Positioned(
                                 top: -10,
                                 right: -10,
@@ -94,7 +185,6 @@ class _LoginPageState extends State<LoginPage> {
                             ],
                           ),
                           const SizedBox(height: 32),
-                          // Title
                           const Text(
                             'KANDANG PINTAR',
                             style: TextStyle(
@@ -141,7 +231,6 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Welcome Section
                       const Text(
                         'Selamat Datang',
                         style: TextStyle(
@@ -169,11 +258,7 @@ class _LoginPageState extends State<LoginPage> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: () {
-                            // Navigate to Home
-                            Navigator.of(context)
-                                .pushReplacementNamed(AppRoutes.home);
-                          },
+                          onPressed: _isLoading ? null : _handleGoogleLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             elevation: 3,
@@ -182,7 +267,16 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: Row(
+                          child: _isLoading
+                              ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5C4033)),
+                            ),
+                          )
+                              : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Image.asset(
@@ -214,7 +308,6 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 18),
 
-                      // Terms & Privacy Info
                       RichText(
                         text: const TextSpan(
                           style: TextStyle(
@@ -301,7 +394,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// Wavy Divider Custom Painter
+// Wavy Divider Custom Painter (TETAP SAMA)
 class WavyDividerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -313,13 +406,11 @@ class WavyDividerPainter extends CustomPainter {
       ..color = const Color(0xFFEBEBEB)
       ..style = PaintingStyle.fill;
 
-    // Draw gray background first
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
       grayPaint,
     );
 
-    // Create smooth wavy path
     final path = Path();
     path.moveTo(0, size.height * 0.4);
 
