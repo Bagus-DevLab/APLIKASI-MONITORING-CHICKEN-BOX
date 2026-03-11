@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert'; // Wajib buat jsonEncode & jsonDecode
+import 'package:http/http.dart' as http; // Wajib buat nembak API
 import '../routes/app_routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -37,30 +39,56 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // 2. Ambil token otentikasi dari Google
+      // 1. Ambil token otentikasi dari Google
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // 3. Buat kredensial khusus buat Firebase
+      // 2. Buat kredensial khusus buat Firebase
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // 4. LOGIN KE FIREBASE
+      // 3. LOGIN KE FIREBASE
       final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
       final User? user = userCredential.user;
 
       if (user != null) {
-        // 5. Ambil Token Firebase dan simpan
+        // 4. Ambil Token Firebase (Ini KTP sementaranya)
         final String? firebaseToken = await user.getIdToken();
 
         if (firebaseToken != null) {
-          await _secureStorage.write(key: 'jwt_token', value: firebaseToken);
-        }
 
-        // 6. Login Sukses, Pindah ke halaman Home
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+          // ---> PROSES TUKAR TAMBAH TOKEN KE BACKEND VPS <---
+          final response = await http.post(
+            Uri.parse('https://api.pcb.my.id/auth/firebase/login'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'id_token': firebaseToken, // Kirim KTP Firebase
+            }),
+          );
+
+          // 5. Cek jawaban dari FastAPI lu
+          if (response.statusCode == 200) {
+            final responseData = jsonDecode(response.body);
+
+            // Ambil JWT Lokal buatan FastAPI
+            final String backendToken = responseData['access_token'];
+
+            // Simpan JWT Lokal ke memori HP
+            await _secureStorage.write(key: 'jwt_token', value: backendToken);
+
+            // 6. Login Sukses 100%, Pindah ke halaman Home
+            if (mounted) {
+              Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+            }
+          } else {
+            // Kalau FastAPI nolak tokennya
+            throw Exception('Backend menolak login: ${response.statusCode} - ${response.body}');
+          }
+
         }
       } else {
         throw Exception('Gagal mendapatkan user dari Firebase.');
@@ -94,6 +122,8 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
+
+  // ... (KODINGAN UI KE BAWAH TETAP SAMA PERSIS, TIDAK ADA YANG DIUBAH) ...
 
   @override
   Widget build(BuildContext context) {
