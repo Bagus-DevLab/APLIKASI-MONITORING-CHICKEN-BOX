@@ -2,22 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'constants/app_colors.dart';
 import 'routes/app_routes.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
-  // 1. Wajib dipanggil sebelum runApp jika ada proses async (seperti baca storage)
+  // 1. Wajib dipanggil sebelum runApp
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Baca token dari penyimpanan lokal HP
-  const secureStorage = FlutterSecureStorage();
-  final String? token = await secureStorage.read(key: 'jwt_token');
+  // Set rute default ke login buat jaga-jaga kalau error
+  String initialRoute = AppRoutes.login;
 
-  // 3. Tentukan halaman pertama secara dinamis
-  // Jika token ada (user sudah login), langsung ke Home. Jika tidak, ke Login.
-  final String initialRoute = (token != null && token.isNotEmpty)
-      ? AppRoutes.home
-      : AppRoutes.login;
+  try {
+    // 2. Inisialisasi Firebase
+    await Firebase.initializeApp();
 
-  // 4. Jalankan aplikasi dengan rute awal yang sudah ditentukan
+    // 3. Baca token dari penyimpanan lokal
+    const secureStorage = FlutterSecureStorage();
+    final String? token = await secureStorage.read(key: 'jwt_token');
+
+    // 4. Tentukan halaman
+    if (token != null && token.isNotEmpty) {
+      initialRoute = AppRoutes.home;
+    }
+  } catch (e) {
+    // Kalau ada error (misal google-services.json hilang dll),
+    // print ke terminal biar ketahuan!
+    debugPrint("======== ERROR DI MAIN ========");
+    debugPrint(e.toString());
+    debugPrint("===============================");
+  }
+
+  // 5. Jalankan aplikasi (GARANSI PASTI JALAN karena di luar try-catch)
   runApp(MyApp(initialRoute: initialRoute));
 }
 
