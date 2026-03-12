@@ -89,25 +89,42 @@ class _DevicesPageState extends State<DevicesPage> {
     await FlutterBluePlus.stopScan();
 
     // Tampilkan loading muter
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)),
-    );
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)),
+      );
+    }
 
     try {
-      // Konek ke ESP32
-      await device.connect();
+      // Konek ke ESP32 (autoConnect false biar lebih stabil dan mencegah error 133)
+      await device.connect(autoConnect: false);
+
+      // ---> FIX ERROR 133 PART 1: Minta ukuran payload yang lebih besar (MTU) <---
+      if (Platform.isAndroid) {
+        try {
+          await device.requestMtu(512);
+          await Future.delayed(const Duration(milliseconds: 500)); // Jeda biar settingan masuk
+        } catch (mtuError) {
+          debugPrint("Gagal request MTU, lanjut dengan default: $mtuError");
+        }
+      }
 
       setState(() => _connectedDevice = device);
-      Navigator.pop(context); // Tutup loading
+      if (mounted) Navigator.pop(context); // Tutup loading
 
       // Buka BottomSheet untuk masukin WiFi
       _showWifiFormBottomSheet(device);
 
     } catch (e) {
-      Navigator.pop(context); // Tutup loading
+      if (mounted) Navigator.pop(context); // Tutup loading
       _showSnackBar('Gagal terhubung ke ${device.advName}', isError: true);
+
+      // Bersihkan koneksi yang menggantung kalau gagal
+      try {
+        await device.disconnect();
+      } catch (_) {}
     }
   }
 
@@ -121,10 +138,17 @@ class _DevicesPageState extends State<DevicesPage> {
 
               // Format JSON sesuai permintaan ESP32
               String jsonPayload = jsonEncode({"ssid": ssid, "pass": password});
-              await char.write(utf8.encode(jsonPayload));
+
+              // ---> FIX ERROR 133 PART 2: Gunakan withoutResponse: true <---
+              // Memaksa Flutter kirim data tanpa nunggu struk balasan dari ESP32
+              await char.write(utf8.encode(jsonPayload), withoutResponse: true);
 
               _showSnackBar('Konfigurasi terkirim! ESP32 akan restart.');
+
+              // Beri jeda sedikit agar data benar-benar terbang sebelum diputus
+              await Future.delayed(const Duration(milliseconds: 500));
               await device.disconnect();
+
               setState(() {
                 _connectedDevice = null;
                 _bluetoothEnabled = false; // Matikan toggle setelah sukses
@@ -136,8 +160,10 @@ class _DevicesPageState extends State<DevicesPage> {
         }
       }
       _showSnackBar('Karakteristik Bluetooth tidak ditemukan!', isError: true);
+      await device.disconnect();
     } catch (e) {
       _showSnackBar('Gagal mengirim data: $e', isError: true);
+      await device.disconnect();
     }
   }
 
