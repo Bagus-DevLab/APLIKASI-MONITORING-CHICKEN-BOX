@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert'; // Wajib buat jsonEncode & jsonDecode
+import 'package:http/http.dart' as http; // Wajib buat nembak API
 import '../routes/app_routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,14 +15,10 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
-
-  // Inisialisasi Google Sign In dan Secure Storage
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email'],
-    serverClientId: '848733779686-k8sauag17kg6d0e2g9g5k37fi0op916r.apps.googleusercontent.com',
-  );
-
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  // Gunakan instance GoogleSignIn tanpa parameter dulu untuk mencoba default config dari json
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   Future<void> _handleGoogleLogin() async {
     setState(() {
@@ -29,7 +26,9 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // 1. Mulai proses Google Sign-In
+      // Logout dulu untuk memastikan prompt akun muncul bersih
+      await _googleSignIn.signOut();
+
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       // Kalau user batalin login (tutup popup Google)
@@ -40,49 +39,72 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // 2. Dapatkan authentication details (termasuk idToken)
+      // 1. Ambil token otentikasi dari Google
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
 
-      if (idToken == null) {
-        throw Exception('Gagal mendapatkan token dari Google.');
-      }
-
-      // 3. Kirim idToken ke backend FastAPI
-      // UBAH DOMAIN DI SINI NANTI SESUAI KEBUTUHAN
-      final response = await http.post(
-        Uri.parse('https://api.pcb.my.id/auth/google/login'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'id_token': idToken,
-        }),
+      // 2. Buat kredensial khusus buat Firebase
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
 
-      // 4. Cek response dari backend
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+      // 3. LOGIN KE FIREBASE
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final User? user = userCredential.user;
 
-        // Sesuaikan key 'access_token' dengan format res
-        // ponse FastAPI kamu
-        final String backendToken = responseData['access_token'];
+      if (user != null) {
+        // 4. Ambil Token Firebase (Ini KTP sementaranya)
+        final String? firebaseToken = await user.getIdToken();
 
-        // 5. Simpan token dengan aman
-        await _secureStorage.write(key: 'jwt_token', value: backendToken);
+        if (firebaseToken != null) {
 
-        // 6. Pindah ke halaman Home
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+          // ---> PROSES TUKAR TAMBAH TOKEN KE BACKEND VPS <---
+          final response = await http.post(
+            Uri.parse('https://api.pcb.my.id/auth/firebase/login'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'id_token': firebaseToken, // Kirim KTP Firebase
+            }),
+          );
+
+          // 5. Cek jawaban dari FastAPI lu
+          if (response.statusCode == 200) {
+            final responseData = jsonDecode(response.body);
+
+            // Ambil JWT Lokal buatan FastAPI
+            final String backendToken = responseData['access_token'];
+
+            // Simpan JWT Lokal ke memori HP
+            await _secureStorage.write(key: 'jwt_token', value: backendToken);
+
+            // 6. Login Sukses 100%, Pindah ke halaman Home
+            if (mounted) {
+              Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+            }
+          } else {
+            // Kalau FastAPI nolak tokennya
+            throw Exception('Backend menolak login: ${response.statusCode} - ${response.body}');
+          }
+
         }
       } else {
-        // Backend menolak login atau token tidak valid
-        throw Exception('Gagal autentikasi di server. Status: ${response.statusCode}');
+        throw Exception('Gagal mendapatkan user dari Firebase.');
       }
 
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Firebase Error: ${e.message}'),
+            backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (error) {
-      // Handle semua jenis error (koneksi, server down, dll)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -91,8 +113,6 @@ class _LoginPageState extends State<LoginPage> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        // Sign out dari Google agar user bisa coba pilih akun lagi
-        await _googleSignIn.signOut();
       }
     } finally {
       if (mounted) {
@@ -103,6 +123,8 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // ... (KODINGAN UI KE BAWAH TETAP SAMA PERSIS, TIDAK ADA YANG DIUBAH) ...
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,7 +134,6 @@ class _LoginPageState extends State<LoginPage> {
           SingleChildScrollView(
             child: Column(
               children: [
-                // Dark Brown Background Area
                 Container(
                   color: const Color(0xFF5C4033),
                   width: double.infinity,
@@ -124,7 +145,6 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       SizedBox(height: MediaQuery.of(context).size.height * 0.08),
-                      // Logo and Title Group
                       Column(
                         children: [
                           Stack(
@@ -146,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
                                   child: Image.asset(
-                                    'assets/images/logo.jpg',
+                                    'assets/images/logo.png',
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
@@ -210,8 +230,6 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-
-                // Wavy Divider
                 SizedBox(
                   width: double.infinity,
                   height: 80,
@@ -219,8 +237,6 @@ class _LoginPageState extends State<LoginPage> {
                     painter: WavyDividerPainter(),
                   ),
                 ),
-
-                // Light Background Area
                 Container(
                   color: const Color(0xFFEBEBEB),
                   width: double.infinity,
@@ -252,8 +268,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 32),
-
-                      // Google Login Button
                       SizedBox(
                         width: double.infinity,
                         height: 56,
@@ -305,9 +319,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 18),
-
                       RichText(
                         text: const TextSpan(
                           style: TextStyle(
@@ -333,7 +345,6 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 30),
                     ],
                   ),
@@ -341,8 +352,6 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
           ),
-
-          // Decorative Circles
           Positioned(
             top: 25,
             left: -25,
@@ -394,7 +403,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// Wavy Divider Custom Painter (TETAP SAMA)
 class WavyDividerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

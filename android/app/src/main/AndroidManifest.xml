@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <application
-        android:label="project_pkl"
+        android:label="palcomtech chicken box"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
