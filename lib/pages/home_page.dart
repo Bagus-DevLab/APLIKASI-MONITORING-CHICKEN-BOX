@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/app_colors.dart';
 
 class HomePage extends StatefulWidget {
@@ -9,29 +13,247 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  Timer? _timer;
+
+  // Variabel Device
+  String? _activeDeviceId;
+  bool _isDeviceLoading = true;
+  String _deviceMessage = 'Mencari kandang...';
+
+  // Variabel Penampung Data Sensor
+  String _temperature = '--';
+  String _humidity = '--';
+  String _ammonia = '--';
+  bool _isSensorLoading = true;
+
+  // Data kontrol kandang
   final List<Map<String, dynamic>> controlItems = [
     {
       'icon': Icons.water_drop_rounded,
       'title': 'Automation Pump',
       'subtitle': 'Pompa Penyiraman Otomatis',
+      'component': 'pompa',
       'isEnabled': false,
       'color': const Color(0xFF2196F3),
     },
     {
       'icon': Icons.lightbulb_rounded,
       'title': 'Lampu Penghangat',
-      'subtitle': 'Pemanas Kandang Ayam',
-      'isEnabled': true,
+      'subtitle': 'Pemanas Kandang',
+      'component': 'lampu',
+      'isEnabled': false,
       'color': const Color(0xFFFFC107),
+    },
+    {
+      'icon': Icons.wind_power_rounded,
+      'title': 'Kipas Exhaust',
+      'subtitle': 'Ventilasi Udara',
+      'component': 'kipas',
+      'isEnabled': false,
+      'color': const Color(0xFF2196F3),
     },
     {
       'icon': Icons.grain_rounded,
       'title': 'Pakan',
-      'subtitle': 'Sistem Pemberian pakan',
-      'isEnabled': true,
+      'subtitle': 'Sistem Pakan',
+      'component': 'pakan_otomatis',
+      'isEnabled': false,
       'color': const Color(0xFFFF9800),
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeDashboard();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  // Fungsi Master untuk Setup Awal
+  Future<void> _initializeDashboard() async {
+    await _fetchClaimedDevices();
+
+    if (_activeDeviceId != null) {
+      await _fetchSensorData();
+
+      _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        _fetchSensorData();
+      });
+    }
+  }
+
+  // Fungsi 1: Cari Kandang yang Dimiliki User
+  Future<void> _fetchClaimedDevices() async {
+    try {
+      final token = await _secureStorage.read(key: 'jwt_token');
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse('https://api.pcb.my.id/devices/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data is List && data.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _activeDeviceId = data[0]['id'].toString();
+              _isDeviceLoading = false;
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _isDeviceLoading = false;
+              _deviceMessage = 'Belum ada kandang terdaftar';
+            });
+          }
+        }
+      } else {
+        debugPrint('Gagal ambil device: ${response.statusCode}');
+        if (mounted) {
+          setState(() {
+            _isDeviceLoading = false;
+            _deviceMessage = 'Gagal memuat data kandang';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error device: $e');
+      if (mounted) {
+        setState(() {
+          _isDeviceLoading = false;
+          _deviceMessage = 'Terjadi kesalahan jaringan';
+        });
+      }
+    }
+  }
+
+  // Fungsi 2: Tarik Data Sensor
+  Future<void> _fetchSensorData() async {
+    if (_activeDeviceId == null) return;
+
+    try {
+      final token = await _secureStorage.read(key: 'jwt_token');
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/logs'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data is List && data.isNotEmpty) {
+          final latestLog = data[0];
+
+          if (mounted) {
+            setState(() {
+              _temperature = latestLog['temperature']?.toString() ?? '--';
+              _humidity = latestLog['humidity']?.toString() ?? '--';
+              _ammonia = latestLog['ammonia']?.toString() ?? '--';
+              _isSensorLoading = false;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetch sensor: $e');
+    }
+  }
+
+  // Fungsi 3: Kirim Perintah Kontrol ke API
+  Future<void> _toggleControl(int index, bool newValue) async {
+    if (_activeDeviceId == null) return;
+
+    final item = controlItems[index];
+    final component = item['component'] as String;
+    final originalValue = item['isEnabled'] as bool;
+
+    // Optimistic update
+    setState(() {
+      controlItems[index]['isEnabled'] = newValue;
+    });
+
+    try {
+      final token = await _secureStorage.read(key: 'jwt_token');
+      if (token == null) throw Exception("Token tidak ditemukan");
+
+      final response = await http.post(
+        Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/control'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'component': component,
+          'state': newValue,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('Sukses ngontrol $component ke mode $newValue');
+      } else {
+        // Revert jika gagal
+        debugPrint('Gagal ngontrol: ${response.statusCode} - ${response.body}');
+        setState(() {
+          controlItems[index]['isEnabled'] = originalValue;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal mengirim perintah ke kandang!'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Revert jika error jaringan
+      debugPrint('Error ngontrol: $e');
+      setState(() {
+        controlItems[index]['isEnabled'] = originalValue;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Terjadi kesalahan jaringan!'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  // Helper status warna sensor
+  Map<String, dynamic> _getStatus(double value, String type) {
+    if (type == 'Suhu') {
+      if (value > 35) return {'status': 'Alert', 'color': AppColors.statusAlert};
+      if (value > 30 || value < 25) return {'status': 'Warning', 'color': AppColors.statusWarning};
+      return {'status': 'Normal', 'color': AppColors.statusNormal};
+    } else if (type == 'Amonia') {
+      if (value > 20) return {'status': 'Alert', 'color': AppColors.statusAlert};
+      if (value > 10) return {'status': 'Warning', 'color': AppColors.statusWarning};
+      return {'status': 'Normal', 'color': AppColors.statusNormal};
+    }
+    return {'status': 'Normal', 'color': AppColors.statusNormal};
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,13 +264,50 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('KONDISI KANDANG'),
-            const SizedBox(height: 10),
-            _buildConditionCards(),
-            const SizedBox(height: 24),
-            _buildSectionTitle('KONTROL KANDANG'),
-            const SizedBox(height: 10),
-            _buildControlItems(),
+            if (_isDeviceLoading || _activeDeviceId == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    _isDeviceLoading ? 'Mencari kandang...' : _deviceMessage,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              )
+            else ...[
+              // ── KONDISI KANDANG ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildSectionTitle('KONDISI KANDANG'),
+                  Text(
+                    'ID: ${_activeDeviceId!.length > 8 ? _activeDeviceId!.substring(0, 8).toUpperCase() : _activeDeviceId}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildConditionCards(),
+              const SizedBox(height: 20),
+
+              // ── KONTROL KANDANG ──
+              _buildSectionTitle('KONTROL KANDANG'),
+              const SizedBox(height: 8),
+              _buildControlItems(),
+            ],
           ],
         ),
       ),
@@ -68,41 +327,47 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildConditionCards() {
+    double tempVal = double.tryParse(_temperature) ?? 0;
+    double ammoniaVal = double.tryParse(_ammonia) ?? 0;
+
+    final tempStatus = _getStatus(tempVal, 'Suhu');
+    final ammoniaStatus = _getStatus(ammoniaVal, 'Amonia');
+
     return Row(
-      children: const [
+      children: [
         Expanded(
           child: _ConditionCard(
             icon: Icons.thermostat,
             label: 'SUHU',
-            value: '28.5',
+            value: _isSensorLoading ? '...' : _temperature,
             unit: '°C',
-            status: 'Naik',
-            statusColor: Color(0xFFE64A19),
-            iconColor: Color(0xFFFF6B35),
+            status: tempStatus['status'],
+            statusColor: tempStatus['color'],
+            iconColor: const Color(0xFFFF6B35),
           ),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           child: _ConditionCard(
             icon: Icons.opacity_rounded,
             label: 'KELEMBAPAN',
-            value: '65',
+            value: _isSensorLoading ? '...' : _humidity,
             unit: '%',
             status: 'Normal',
-            statusColor: Color(0xFF43A047),
-            iconColor: Color(0xFF2196F3),
+            statusColor: AppColors.statusNormal,
+            iconColor: const Color(0xFF2196F3),
           ),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           child: _ConditionCard(
             icon: Icons.air_rounded,
             label: 'AMONIA',
-            value: '12.4',
+            value: _isSensorLoading ? '...' : _ammonia,
             unit: 'PPM',
-            status: 'Normal',
-            statusColor: Color(0xFF43A047),
-            iconColor: Color(0xFF4CAF50),
+            status: ammoniaStatus['status'],
+            statusColor: ammoniaStatus['color'],
+            iconColor: const Color(0xFF4CAF50),
           ),
         ),
       ],
@@ -121,11 +386,7 @@ class _HomePageState extends State<HomePage> {
             subtitle: item['subtitle'] as String,
             isEnabled: item['isEnabled'] as bool,
             color: item['color'] as Color,
-            onToggle: (value) {
-              setState(() {
-                controlItems[index]['isEnabled'] = value;
-              });
-            },
+            onToggle: (value) => _toggleControl(index, value),
           ),
         );
       }),
@@ -158,10 +419,8 @@ class _ConditionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isNaik = status == 'Naik';
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -176,70 +435,86 @@ class _ConditionCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: iconColor, size: 28),
+          Icon(icon, color: iconColor, size: 24),
           const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF888888),
-              letterSpacing: 0.3,
+
+          // Label (Suhu, Kelembapan, Amonia)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.2,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A),
-                  height: 1,
-                ),
-              ),
-              Text(
-                unit,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF888888),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
+
+          // Angka + Satuan
+          FittedBox(
+            fit: BoxFit.scaleDown,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
-                Icon(
-                  isNaik
-                      ? Icons.arrow_upward_rounded
-                      : Icons.check_rounded,
-                  size: 10,
-                  color: statusColor,
-                ),
-                const SizedBox(width: 3),
                 Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
+                  value,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  unit,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // Badge Status (Normal / Warning / Alert)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -286,7 +561,6 @@ class _ControlItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 44,
             height: 44,
@@ -297,8 +571,6 @@ class _ControlItem extends StatelessWidget {
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
-
-          // Text
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,8 +595,6 @@ class _ControlItem extends StatelessWidget {
               ],
             ),
           ),
-
-          // Toggle — aktif: coklat gelap, nonaktif: abu
           Transform.scale(
             scale: 0.85,
             child: Switch(

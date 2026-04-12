@@ -1,13 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'constants/app_colors.dart';
 import 'routes/app_routes.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  // 1. Wajib dipanggil sebelum runApp
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Set rute default ke login buat jaga-jaga kalau error
+  String initialRoute = AppRoutes.login;
+
+  try {
+    // 2. Inisialisasi Firebase
+    await Firebase.initializeApp();
+
+    // 3. Baca token dari penyimpanan lokal
+    const secureStorage = FlutterSecureStorage();
+    final String? token = await secureStorage.read(key: 'jwt_token');
+
+    // 4. Tentukan halaman
+    if (token != null && token.isNotEmpty) {
+      initialRoute = AppRoutes.home;
+    }
+  } catch (e) {
+    // Kalau ada error (misal google-services.json hilang dll),
+    // print ke terminal biar ketahuan!
+    debugPrint("======== ERROR DI MAIN ========");
+    debugPrint(e.toString());
+    debugPrint("===============================");
+  }
+
+  // 5. Jalankan aplikasi (GARANSI PASTI JALAN karena di luar try-catch)
+  runApp(MyApp(initialRoute: initialRoute));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+
+  // Menerima initialRoute dari fungsi main
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +48,10 @@ class MyApp extends StatelessWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: ThemeMode.light, // Ubah ke ThemeMode.system jika ingin ikuti device setting
-      initialRoute: AppRoutes.login,
+
+      // 5. Gunakan rute dinamis di sini
+      initialRoute: initialRoute,
+
       onGenerateRoute: AppRoutes.generateRoute,
       debugShowCheckedModeBanner: false,
     );
@@ -171,7 +206,7 @@ class MyApp extends StatelessWidget {
           fontSize: 14,
         ),
         prefixIconColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.focused)) {
               return AppColors.primaryGreen;
             }
@@ -179,7 +214,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         suffixIconColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.focused)) {
               return AppColors.primaryGreen;
             }
@@ -379,7 +414,7 @@ class MyApp extends StatelessWidget {
       // Switch Theme
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryBlue;
             }
@@ -387,7 +422,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         trackColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryBlue.withValues(alpha: 0.5);
             }
@@ -399,7 +434,7 @@ class MyApp extends StatelessWidget {
       // Checkbox Theme
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryGreen;
             }
@@ -407,7 +442,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         checkColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             return Colors.white;
           },
         ),
@@ -416,7 +451,7 @@ class MyApp extends StatelessWidget {
       // Radio Theme
       radioTheme: RadioThemeData(
         fillColor: WidgetStateColor.resolveWith(
-          (Set<WidgetState> states) {
+              (Set<WidgetState> states) {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primaryGreen;
             }

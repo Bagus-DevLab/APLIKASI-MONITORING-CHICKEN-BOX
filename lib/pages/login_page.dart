@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../routes/app_routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -12,12 +17,151 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleEmailLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Email dan password tidak boleh kosong.'),
+          backgroundColor: Colors.red.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final User? user = userCredential.user;
+      if (user != null) {
+        final String? firebaseToken = await user.getIdToken();
+        if (firebaseToken != null) {
+          await _exchangeTokenWithBackend(firebaseToken);
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login gagal: ${e.message}'),
+            backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $error'),
+            backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _isLoading = true);
+
+    try {
+      await _googleSignIn.signOut();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        final String? firebaseToken = await user.getIdToken();
+        if (firebaseToken != null) {
+          await _exchangeTokenWithBackend(firebaseToken);
+        }
+      } else {
+        throw Exception('Gagal mendapatkan user dari Firebase.');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Firebase Error: ${e.message}'),
+            backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $error'),
+            backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _exchangeTokenWithBackend(String firebaseToken) async {
+    final response = await http.post(
+      Uri.parse('https://api.pcb.my.id/auth/firebase/login'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({'id_token': firebaseToken}),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final String backendToken = responseData['access_token'];
+      await _secureStorage.write(key: 'jwt_token', value: backendToken);
+
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+      }
+    } else {
+      throw Exception(
+          'Backend menolak login: ${response.statusCode} - ${response.body}');
+    }
   }
 
   @override
@@ -29,23 +173,18 @@ class _LoginPageState extends State<LoginPage> {
           SingleChildScrollView(
             child: Column(
               children: [
-                // Dark Brown Background Area
+                // ── HEADER (coklat) ──
                 Container(
                   color: const Color(0xFF5C4033),
                   width: double.infinity,
-                  padding: const EdgeInsets.only(
-                    top: 40,
-                    bottom: 0,
-                  ),
+                  padding: const EdgeInsets.only(top: 40, bottom: 0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       SizedBox(
                           height: MediaQuery.of(context).size.height * 0.08),
-                      // Logo and Title Group
                       Column(
                         children: [
-                          // Logo Image with IoT indicator
                           Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -56,7 +195,8 @@ class _LoginPageState extends State<LoginPage> {
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.4),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.4),
                                       blurRadius: 20,
                                       offset: const Offset(0, 8),
                                     ),
@@ -65,9 +205,10 @@ class _LoginPageState extends State<LoginPage> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
                                   child: Image.asset(
-                                    'assets/images/logo.jpg',
+                                    'assets/images/logo.png',
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
+                                    errorBuilder:
+                                        (context, error, stackTrace) {
                                       return Container(
                                         decoration: BoxDecoration(
                                           color: Colors.white,
@@ -86,7 +227,6 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ),
-                              // IoT WiFi Indicator
                               Positioned(
                                 top: -10,
                                 right: -10,
@@ -106,7 +246,6 @@ class _LoginPageState extends State<LoginPage> {
                             ],
                           ),
                           const SizedBox(height: 32),
-                          // Title
                           const Text(
                             'KANDANG PINTAR',
                             style: TextStyle(
@@ -134,27 +273,22 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
-                // Wavy Divider
+                // ── WAVY DIVIDER ──
                 SizedBox(
                   width: double.infinity,
                   height: 80,
-                  child: CustomPaint(
-                    painter: WavyDividerPainter(),
-                  ),
+                  child: CustomPaint(painter: WavyDividerPainter()),
                 ),
 
-                // Light Background Area
+                // ── FORM AREA (abu-abu terang) ──
                 Container(
                   color: const Color(0xFFEBEBEB),
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 8,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Title
                       const Text(
                         'Log In',
                         style: TextStyle(
@@ -177,7 +311,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Email / Username Field
+                      // ── EMAIL / USERNAME FIELD ──
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -194,9 +328,7 @@ class _LoginPageState extends State<LoginPage> {
                           filled: true,
                           fillColor: Colors.white,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
+                              horizontal: 20, vertical: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30),
                             borderSide: BorderSide.none,
@@ -208,16 +340,13 @@ class _LoginPageState extends State<LoginPage> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30),
                             borderSide: const BorderSide(
-                              color: Color(0xFF5C4033),
-                              width: 1.5,
-                            ),
+                                color: Color(0xFF5C4033), width: 1.5),
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 14),
 
-                      // Password Field
+                      // ── PASSWORD FIELD ──
                       TextField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -234,9 +363,7 @@ class _LoginPageState extends State<LoginPage> {
                           filled: true,
                           fillColor: Colors.white,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
+                              horizontal: 20, vertical: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30),
                             borderSide: BorderSide.none,
@@ -248,9 +375,7 @@ class _LoginPageState extends State<LoginPage> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30),
                             borderSide: const BorderSide(
-                              color: Color(0xFF5C4033),
-                              width: 1.5,
-                            ),
+                                color: Color(0xFF5C4033), width: 1.5),
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -261,26 +386,20 @@ class _LoginPageState extends State<LoginPage> {
                               size: 20,
                             ),
                             onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
+                              setState(
+                                  () => _obscurePassword = !_obscurePassword);
                             },
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
 
-                      // Masuk Button
+                      // ── TOMBOL MASUK ──
                       SizedBox(
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
-                          onPressed: () {
-                            // TODO: Tambahkan validasi & autentikasi
-                            Navigator.of(context)
-                                .pushReplacementNamed(AppRoutes.home);
-                          },
+                          onPressed: _isLoading ? null : _handleEmailLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF5C4033),
                             elevation: 0,
@@ -288,24 +407,33 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: const Text(
-                            'Masuk',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                )
+                              : const Text(
+                                  'Masuk',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
                         ),
                       ),
-
                       const SizedBox(height: 14),
 
                       // ── LINK KE REGISTER ──
                       GestureDetector(
-                        onTap: () =>
-                            Navigator.of(context).pushNamed(AppRoutes.register),
+                        onTap: () => Navigator.of(context)
+                            .pushNamed(AppRoutes.register),
                         child: RichText(
                           text: const TextSpan(
                             style: TextStyle(
@@ -325,18 +453,15 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
 
-                      // OR Divider
+                      // ── DIVIDER OR ──
                       Row(
                         children: [
                           Expanded(
-                            child: Container(
-                              height: 1,
-                              color: const Color(0xFFCCCCCC),
-                            ),
-                          ),
+                              child: Container(
+                                  height: 1,
+                                  color: const Color(0xFFCCCCCC))),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 12),
                             child: Text(
@@ -350,66 +475,71 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           Expanded(
-                            child: Container(
-                              height: 1,
-                              color: const Color(0xFFCCCCCC),
-                            ),
-                          ),
+                              child: Container(
+                                  height: 1,
+                                  color: const Color(0xFFCCCCCC))),
                         ],
                       ),
-
                       const SizedBox(height: 20),
 
-                      // Google Login Button
+                      // ── TOMBOL GOOGLE ──
                       SizedBox(
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context)
-                                .pushReplacementNamed(AppRoutes.home);
-                          },
+                          onPressed: _isLoading ? null : _handleGoogleLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             elevation: 3,
-                            shadowColor: Colors.black.withValues(alpha: 0.15),
+                            shadowColor:
+                                Colors.black.withValues(alpha: 0.15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                'assets/images/google_logo.png',
-                                width: 24,
-                                height: 24,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    Icons.account_circle,
-                                    size: 24,
-                                    color: Color(0xFF1F2937),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Masuk dengan Google',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1F2937),
-                                  letterSpacing: 0.2,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF5C4033)),
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/google_logo.png',
+                                      width: 24,
+                                      height: 24,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return const Icon(
+                                          Icons.account_circle,
+                                          size: 24,
+                                          color: Color(0xFF1F2937),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      'Masuk dengan Google',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF1F2937),
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
-
                       const SizedBox(height: 18),
 
-                      // Terms & Privacy Info
+                      // ── FOOTER TEXT ──
                       RichText(
                         text: const TextSpan(
                           style: TextStyle(
@@ -419,9 +549,7 @@ class _LoginPageState extends State<LoginPage> {
                             height: 1.5,
                           ),
                           children: [
-                            TextSpan(
-                              text: 'Dengan masuk, kamu menyetujui ',
-                            ),
+                            TextSpan(text: 'Dengan masuk, kamu menyetujui '),
                             TextSpan(
                               text: 'Syarat & Ketentuan',
                               style: TextStyle(
@@ -430,12 +558,11 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             TextSpan(
-                              text: ' serta Kebijakan Privasi Smart Kandang.',
-                            ),
+                                text:
+                                    ' serta Kebijakan Privasi Smart Kandang.'),
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 30),
                     ],
                   ),
@@ -444,7 +571,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // Decorative Circles
+          // ── DEKORASI LINGKARAN ──
           Positioned(
             top: 25,
             left: -25,
@@ -496,7 +623,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// Wavy Divider Custom Painter
 class WavyDividerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
