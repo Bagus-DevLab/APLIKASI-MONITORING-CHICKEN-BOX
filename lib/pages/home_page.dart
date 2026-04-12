@@ -9,54 +9,45 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final controlItems = [
+  final List<Map<String, dynamic>> controlItems = [
     {
       'icon': Icons.water_drop_rounded,
       'title': 'Automation Pump',
       'subtitle': 'Pompa Penyiraman Otomatis',
-      'isEnabled': true,
-      'color': const Color(0xFF2196F3), // Blue
+      'isEnabled': false,
+      'color': const Color(0xFF2196F3),
     },
     {
       'icon': Icons.lightbulb_rounded,
       'title': 'Lampu Penghangat',
       'subtitle': 'Pemanas Kandang Ayam',
-      'isEnabled': false,
-      'color': const Color(0xFFFFC107), // Yellow
-    },
-    {
-      'icon': Icons.wind_power_rounded,
-      'title': 'Kipas Exhaust',
-      'subtitle': 'Ventilasi Udara Kandang',
       'isEnabled': true,
-      'color': const Color(0xFF2196F3), // Blue
+      'color': const Color(0xFFFFC107),
     },
     {
       'icon': Icons.grain_rounded,
       'title': 'Pakan',
       'subtitle': 'Sistem Pemberian pakan',
-      'isEnabled': false,
-      'color': const Color(0xFFFF9800), // Orange
+      'isEnabled': true,
+      'color': const Color(0xFFFF9800),
     },
   ];
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
+    return Container(
+      color: const Color(0xFFEBEBEB),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // KONDISI KANDANG Section
             _buildSectionTitle('KONDISI KANDANG'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _buildConditionCards(),
-            const SizedBox(height: 20),
-
-            // KONTROL KANDANG Section
+            const SizedBox(height: 24),
             _buildSectionTitle('KONTROL KANDANG'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _buildControlItems(),
           ],
         ),
@@ -64,35 +55,33 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Build Section Title
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
       style: const TextStyle(
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
-        letterSpacing: 0.5,
+        color: Color(0xFF333333),
+        letterSpacing: 0.8,
       ),
     );
   }
 
-  /// Build Condition Cards (Suhu, Kelembapan, Amonia)
   Widget _buildConditionCards() {
-    return const Row(
-      children: [
+    return Row(
+      children: const [
         Expanded(
           child: _ConditionCard(
             icon: Icons.thermostat,
             label: 'SUHU',
             value: '28.5',
             unit: '°C',
-            status: 'Alert',
-            statusColor: AppColors.statusWarning,
-            iconColor: Color(0xFFFF6B35), // Orange/Red
+            status: 'Naik',
+            statusColor: Color(0xFFE64A19),
+            iconColor: Color(0xFFFF6B35),
           ),
         ),
-        SizedBox(width: 12),
+        SizedBox(width: 10),
         Expanded(
           child: _ConditionCard(
             icon: Icons.opacity_rounded,
@@ -100,11 +89,11 @@ class _HomePageState extends State<HomePage> {
             value: '65',
             unit: '%',
             status: 'Normal',
-            statusColor: AppColors.statusNormal,
-            iconColor: Color(0xFF2196F3), // Blue
+            statusColor: Color(0xFF43A047),
+            iconColor: Color(0xFF2196F3),
           ),
         ),
-        SizedBox(width: 12),
+        SizedBox(width: 10),
         Expanded(
           child: _ConditionCard(
             icon: Icons.air_rounded,
@@ -112,43 +101,41 @@ class _HomePageState extends State<HomePage> {
             value: '12.4',
             unit: 'PPM',
             status: 'Normal',
-            statusColor: AppColors.statusNormal,
-            iconColor: Color(0xFF4CAF50), // Green
+            statusColor: Color(0xFF43A047),
+            iconColor: Color(0xFF4CAF50),
           ),
         ),
       ],
     );
   }
 
-  /// Build Control Items (Automation Pump, Lampu, Kipas Exhaust, Pakan)
   Widget _buildControlItems() {
     return Column(
-      children: List.generate(
-        controlItems.length,
-        (index) {
-          final item = controlItems[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _ControlItem(
-              icon: item['icon'] as IconData,
-              title: item['title'] as String,
-              subtitle: item['subtitle'] as String,
-              isEnabled: item['isEnabled'] as bool,
-              color: item['color'] as Color,
-              onToggle: (value) {
-                setState(() {
-                  controlItems[index]['isEnabled'] = value;
-                });
-              },
-            ),
-          );
-        },
-      ),
+      children: List.generate(controlItems.length, (index) {
+        final item = controlItems[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _ControlItem(
+            icon: item['icon'] as IconData,
+            title: item['title'] as String,
+            subtitle: item['subtitle'] as String,
+            isEnabled: item['isEnabled'] as bool,
+            color: item['color'] as Color,
+            onToggle: (value) {
+              setState(() {
+                controlItems[index]['isEnabled'] = value;
+              });
+            },
+          ),
+        );
+      }),
     );
   }
 }
 
-// ============ CONDITION CARD WIDGET ============
+// ════════════════════════════════════════════
+// CONDITION CARD
+// ════════════════════════════════════════════
 
 class _ConditionCard extends StatelessWidget {
   final IconData icon;
@@ -171,39 +158,37 @@ class _ConditionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isNaik = status == 'Naik';
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.secondaryLight,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
           BoxShadow(
-            color: AppColors.shadowColor,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Color(0x14000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: iconColor,
-            size: 26,
-          ),
+          Icon(icon, color: iconColor, size: 28),
           const SizedBox(height: 6),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-              letterSpacing: 0.2,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF888888),
+              letterSpacing: 0.3,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -212,45 +197,45 @@ class _ConditionCard extends StatelessWidget {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A),
+                  height: 1,
                 ),
               ),
               Text(
                 unit,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
+                  color: Color(0xFF888888),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
+                Icon(
+                  isNaik
+                      ? Icons.arrow_upward_rounded
+                      : Icons.check_rounded,
+                  size: 10,
+                  color: statusColor,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 3),
                 Text(
                   status,
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: statusColor,
                   ),
                 ),
@@ -263,7 +248,9 @@ class _ConditionCard extends StatelessWidget {
   }
 }
 
-// ============ CONTROL ITEM WIDGET ============
+// ════════════════════════════════════════════
+// CONTROL ITEM
+// ════════════════════════════════════════════
 
 class _ControlItem extends StatelessWidget {
   final IconData icon;
@@ -285,73 +272,68 @@ class _ControlItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.secondaryLight,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
           BoxShadow(
-            color: AppColors.shadowColor,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Color(0x10000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Icon Container
+          // Icon
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
+            child: Icon(icon, color: color, size: 22),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 14),
 
-          // Title & Subtitle
+          // Text
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.textSecondary,
+                    color: Color(0xFF888888),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Toggle Switch
+          // Toggle — aktif: coklat gelap, nonaktif: abu
           Transform.scale(
-            scale: 0.8,
+            scale: 0.85,
             child: Switch(
               value: isEnabled,
               onChanged: onToggle,
               activeThumbColor: Colors.white,
-              activeTrackColor: color,
-              inactiveTrackColor: AppColors.textTertiary.withValues(alpha: 0.3),
-              inactiveThumbColor: AppColors.textTertiary,
+              activeTrackColor: const Color(0xFF4E342E),
+              inactiveThumbColor: const Color(0xFFBBBBBB),
+              inactiveTrackColor: const Color(0xFFDDDDDD),
             ),
           ),
         ],

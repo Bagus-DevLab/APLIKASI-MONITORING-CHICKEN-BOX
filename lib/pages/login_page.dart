@@ -9,6 +9,17 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -29,7 +40,8 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.08),
+                      SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.08),
                       // Logo and Title Group
                       Column(
                         children: [
@@ -116,7 +128,8 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.08),
+                      SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.08),
                     ],
                   ),
                 ),
@@ -136,14 +149,14 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
-                    vertical: 40,
+                    vertical: 8,
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Welcome Section
+                      // Title
                       const Text(
-                        'Selamat Datang',
+                        'Log In',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w900,
@@ -151,9 +164,9 @@ class _LoginPageState extends State<LoginPage> {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       const Text(
-                        'Masuk dengan akun Google kamu untuk mulai monitoring kandang ayam.',
+                        'Masukkan username dan password kalian.',
                         style: TextStyle(
                           fontSize: 13,
                           color: Color(0xFF666666),
@@ -162,15 +175,197 @@ class _LoginPageState extends State<LoginPage> {
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
+
+                      // Email / Username Field
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Username Or Email',
+                          hintStyle: const TextStyle(
+                            color: Color(0xFFAAAAAA),
+                            fontSize: 14,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF5C4033),
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Password Field
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Password',
+                          hintStyle: const TextStyle(
+                            color: Color(0xFFAAAAAA),
+                            fontSize: 14,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF5C4033),
+                              width: 1.5,
+                            ),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: const Color(0xFFAAAAAA),
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Masuk Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            // TODO: Tambahkan validasi & autentikasi
+                            Navigator.of(context)
+                                .pushReplacementNamed(AppRoutes.home);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF5C4033),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: const Text(
+                            'Masuk',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // ── LINK KE REGISTER ──
+                      GestureDetector(
+                        onTap: () =>
+                            Navigator.of(context).pushNamed(AppRoutes.register),
+                        child: RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF888888),
+                            ),
+                            children: [
+                              TextSpan(text: 'Belum punya akun? '),
+                              TextSpan(
+                                text: 'Daftar di sini',
+                                style: TextStyle(
+                                  color: Color(0xFF5C4033),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // OR Divider
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: const Color(0xFFCCCCCC),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'OR',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF999999),
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: const Color(0xFFCCCCCC),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
 
                       // Google Login Button
                       SizedBox(
                         width: double.infinity,
-                        height: 56,
+                        height: 54,
                         child: ElevatedButton(
                           onPressed: () {
-                            // Navigate to Home
                             Navigator.of(context)
                                 .pushReplacementNamed(AppRoutes.home);
                           },
@@ -179,7 +374,7 @@ class _LoginPageState extends State<LoginPage> {
                             elevation: 3,
                             shadowColor: Colors.black.withValues(alpha: 0.15),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(30),
                             ),
                           ),
                           child: Row(
@@ -313,13 +508,11 @@ class WavyDividerPainter extends CustomPainter {
       ..color = const Color(0xFFEBEBEB)
       ..style = PaintingStyle.fill;
 
-    // Draw gray background first
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
       grayPaint,
     );
 
-    // Create smooth wavy path
     final path = Path();
     path.moveTo(0, size.height * 0.4);
 
