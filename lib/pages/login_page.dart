@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../routes/app_routes.dart';
+import '../constants/api_config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -142,7 +143,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _exchangeTokenWithBackend(String firebaseToken) async {
     final response = await http.post(
-      Uri.parse('https://api.pcb.my.id/auth/firebase/login'),
+      Uri.parse(ApiConfig.authFirebaseLoginUrl),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

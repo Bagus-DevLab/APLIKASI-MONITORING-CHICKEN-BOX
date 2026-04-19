@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'constants/app_colors.dart';
 import 'routes/app_routes.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'constants/api_config.dart';
 
 void main() async {
   // 1. Wajib dipanggil sebelum runApp
@@ -14,6 +15,8 @@ void main() async {
   try {
     // 2. Inisialisasi Firebase
     await Firebase.initializeApp();
+
+    await ApiConfig.initialize();
 
     // 3. Baca token dari penyimpanan lokal
     const secureStorage = FlutterSecureStorage();
