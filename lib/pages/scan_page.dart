@@ -7,8 +7,7 @@ import '../constants/api_config.dart';
 import '../routes/app_routes.dart';
 
 import '../constants/app_colors.dart';
-// IMPORT halaman Bluetooth kamu di sini:
-import 'home_screen.dart';
+
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key});

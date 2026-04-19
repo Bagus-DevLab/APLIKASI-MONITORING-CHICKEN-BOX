@@ -5,6 +5,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../constants/app_colors.dart';
 
+
 class DevicesPage extends StatefulWidget {
   const DevicesPage({super.key});
 
