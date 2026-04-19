@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/app_colors.dart';
+import '../constants/api_config.dart';
+
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -36,7 +38,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
       // 1. Dapatkan Device ID dulu
       final devResponse = await http.get(
-        Uri.parse('https://api.pcb.my.id/devices/'),
+        Uri.parse(ApiConfig.devicesUrl),
         headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
@@ -47,13 +49,13 @@ class _HistoryPageState extends State<HistoryPage> {
 
           // 2. Tembak API Logs (Untuk Suhu, Kelembapan, Amonia) - Ambil 50 data terakhir
           final logsResponse = await http.get(
-            Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/logs?limit=50'),
+            Uri.parse(ApiConfig.deviceLogsHistoryUrl(_activeDeviceId!)), // <-- Gunakan fungsi History
             headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
           );
 
           // 3. Tembak API Alerts (Untuk tab Aktivitas)
           final alertsResponse = await http.get(
-            Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/alerts'),
+            Uri.parse(ApiConfig.deviceAlertsUrl(_activeDeviceId!)),
             headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
           );
 
