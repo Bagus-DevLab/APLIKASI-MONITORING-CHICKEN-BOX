@@ -46,22 +46,6 @@ class _HomePageState extends State<HomePage> {
       'isEnabled': false,
       'color': const Color(0xFFFFC107),
     },
-    {
-      'icon': Icons.wind_power_rounded,
-      'title': 'Kipas Exhaust',
-      'subtitle': 'Ventilasi Udara',
-      'component': 'kipas',
-      'isEnabled': false,
-      'color': const Color(0xFF2196F3),
-    },
-    {
-      'icon': Icons.grain_rounded,
-      'title': 'Pakan',
-      'subtitle': 'Sistem Pakan',
-      'component': 'pakan_otomatis',
-      'isEnabled': false,
-      'color': const Color(0xFFFF9800),
-    },
   ];
 
   @override
@@ -76,20 +60,77 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // Fungsi Master untuk Setup Awal
+  // --- FUNGSI MASTER SETUP AWAL ---
   Future<void> _initializeDashboard() async {
     await _fetchClaimedDevices();
 
     if (_activeDeviceId != null) {
+      await _loadLocalToggleStates(); // 1. Load memori toggle lokal (Biar gak reset pas pindah tab)
       await _fetchSensorData();
+      await _fetchControlStatus();    // 2. Sinkronkan state asli dari Backend API
 
       _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
         _fetchSensorData();
+        _fetchControlStatus();        // Terus sinkronisasi
       });
     }
   }
 
-  // Fungsi 1: Cari Kandang yang Dimiliki User
+  // --- FUNGSI LOAD STATE TOGGLE DARI MEMORI HP ---
+  Future<void> _loadLocalToggleStates() async {
+    if (_activeDeviceId == null) return;
+    
+    for (int i = 0; i < controlItems.length; i++) {
+      String comp = controlItems[i]['component'];
+      String? savedState = await _secureStorage.read(key: 'toggle_${_activeDeviceId}_$comp');
+      
+      if (savedState != null && mounted) {
+        setState(() {
+          controlItems[i]['isEnabled'] = (savedState == 'true');
+        });
+      }
+    }
+  }
+
+  // --- FUNGSI CEK STATUS ASLI KE API ---
+  Future<void> _fetchControlStatus() async {
+    if (_activeDeviceId == null) return;
+    try {
+      final token = await _secureStorage.read(key: 'jwt_token');
+      final response = await http.get(
+        Uri.parse(ApiConfig.deviceStatusUrl(_activeDeviceId!)),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            for (int i = 0; i < controlItems.length; i++) {
+              String comp = controlItems[i]['component'];
+              
+              // Jika backend membalas dengan status komponen (contoh: "pompa": true)
+              if (data.containsKey(comp)) {
+                bool isOn = data[comp] == true || data[comp] == 1 || data[comp] == 'ON';
+                controlItems[i]['isEnabled'] = isOn;
+                _secureStorage.write(key: 'toggle_${_activeDeviceId}_$comp', value: isOn.toString());
+              } 
+              // Atau jika dalam object "state" (contoh: "state": {"pompa": true})
+              else if (data['state'] != null && data['state'].containsKey(comp)) {
+                bool isOn = data['state'][comp] == true || data['state'][comp] == 1 || data['state'][comp] == 'ON';
+                controlItems[i]['isEnabled'] = isOn;
+                _secureStorage.write(key: 'toggle_${_activeDeviceId}_$comp', value: isOn.toString());
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Info: API status alat belum mendukung cek komponen. Menggunakan cache lokal.');
+    }
+  }
+
+  // --- FUNGSI CEK KANDANG ---
   Future<void> _fetchClaimedDevices() async {
     try {
       final token = await _secureStorage.read(key: 'jwt_token');
@@ -97,15 +138,11 @@ class _HomePageState extends State<HomePage> {
 
       final response = await http.get(
         Uri.parse(ApiConfig.devicesUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         if (data is List && data.isNotEmpty) {
           if (mounted) {
             setState(() {
@@ -114,55 +151,32 @@ class _HomePageState extends State<HomePage> {
             });
           }
         } else {
-          if (mounted) {
-            setState(() {
-              _isDeviceLoading = false;
-              _deviceMessage = 'Belum ada kandang terdaftar';
-            });
-          }
+          if (mounted) setState(() { _isDeviceLoading = false; _deviceMessage = 'Belum ada kandang terdaftar'; });
         }
       } else {
-        debugPrint('Gagal ambil device: ${response.statusCode}');
-        if (mounted) {
-          setState(() {
-            _isDeviceLoading = false;
-            _deviceMessage = 'Gagal memuat data kandang';
-          });
-        }
+        if (mounted) setState(() { _isDeviceLoading = false; _deviceMessage = 'Gagal memuat data kandang'; });
       }
     } catch (e) {
-      debugPrint('Error device: $e');
-      if (mounted) {
-        setState(() {
-          _isDeviceLoading = false;
-          _deviceMessage = 'Terjadi kesalahan jaringan';
-        });
-      }
+      if (mounted) setState(() { _isDeviceLoading = false; _deviceMessage = 'Terjadi kesalahan jaringan'; });
     }
   }
 
-  // Fungsi 2: Tarik Data Sensor
+  // --- FUNGSI CEK SENSOR ---
   Future<void> _fetchSensorData() async {
     if (_activeDeviceId == null) return;
-
     try {
       final token = await _secureStorage.read(key: 'jwt_token');
       if (token == null) return;
 
       final response = await http.get(
         Uri.parse(ApiConfig.deviceLogsUrl(_activeDeviceId!)),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         if (data is List && data.isNotEmpty) {
           final latestLog = data[0];
-
           if (mounted) {
             setState(() {
               _temperature = latestLog['temperature']?.toString() ?? '--';
@@ -178,7 +192,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Fungsi 3: Kirim Perintah Kontrol ke API
+  // --- FUNGSI KIRIM KONTROL KE ALAT ---
   Future<void> _toggleControl(int index, bool newValue) async {
     if (_activeDeviceId == null) return;
 
@@ -186,7 +200,7 @@ class _HomePageState extends State<HomePage> {
     final component = item['component'] as String;
     final originalValue = item['isEnabled'] as bool;
 
-    // Optimistic update
+    // Optimistic update UI biar langsung responsif
     setState(() {
       controlItems[index]['isEnabled'] = newValue;
     });
@@ -210,33 +224,23 @@ class _HomePageState extends State<HomePage> {
 
       if (response.statusCode == 200) {
         debugPrint('Sukses ngontrol $component ke mode $newValue');
+        // PENTING: Simpan state ke memori lokal jika backend membalas OK
+        await _secureStorage.write(key: 'toggle_${_activeDeviceId}_$component', value: newValue.toString());
       } else {
-        // Revert jika gagal
-        debugPrint('Gagal ngontrol: ${response.statusCode} - ${response.body}');
-        setState(() {
-          controlItems[index]['isEnabled'] = originalValue;
-        });
+        // Kalau gagal di sisi API, kembalikan posisi Toggle ke semula
+        setState(() => controlItems[index]['isEnabled'] = originalValue);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Gagal mengirim perintah ke kandang!'),
-              backgroundColor: AppColors.error,
-            ),
+            const SnackBar(content: Text('Gagal mengirim perintah ke kandang!'), backgroundColor: AppColors.error),
           );
         }
       }
     } catch (e) {
-      // Revert jika error jaringan
-      debugPrint('Error ngontrol: $e');
-      setState(() {
-        controlItems[index]['isEnabled'] = originalValue;
-      });
+      // Kalau koneksi internet mati
+      setState(() => controlItems[index]['isEnabled'] = originalValue);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Terjadi kesalahan jaringan!'),
-            backgroundColor: AppColors.error,
-          ),
+          const SnackBar(content: Text('Terjadi kesalahan jaringan!'), backgroundColor: AppColors.error),
         );
       }
     }
@@ -270,17 +274,11 @@ class _HomePageState extends State<HomePage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: AppColors.secondaryLight, borderRadius: BorderRadius.circular(12)),
                 child: Center(
                   child: Text(
                     _isDeviceLoading ? 'Mencari kandang...' : _deviceMessage,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                   ),
                 ),
               )
@@ -292,11 +290,7 @@ class _HomePageState extends State<HomePage> {
                   _buildSectionTitle('KONDISI KANDANG'),
                   Text(
                     'ID: ${_activeDeviceId!.length > 8 ? _activeDeviceId!.substring(0, 8).toUpperCase() : _activeDeviceId}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryBlue,
-                    ),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryBlue),
                   ),
                 ],
               ),
@@ -318,12 +312,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF333333),
-        letterSpacing: 0.8,
-      ),
+      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF333333), letterSpacing: 0.8),
     );
   }
 
@@ -338,37 +327,22 @@ class _HomePageState extends State<HomePage> {
       children: [
         Expanded(
           child: _ConditionCard(
-            icon: Icons.thermostat,
-            label: 'SUHU',
-            value: _isSensorLoading ? '...' : _temperature,
-            unit: '°C',
-            status: tempStatus['status'],
-            statusColor: tempStatus['color'],
-            iconColor: const Color(0xFFFF6B35),
+            icon: Icons.thermostat, label: 'SUHU', value: _isSensorLoading ? '...' : _temperature, unit: '°C',
+            status: tempStatus['status'], statusColor: tempStatus['color'], iconColor: const Color(0xFFFF6B35),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _ConditionCard(
-            icon: Icons.opacity_rounded,
-            label: 'KELEMBAPAN',
-            value: _isSensorLoading ? '...' : _humidity,
-            unit: '%',
-            status: 'Normal',
-            statusColor: AppColors.statusNormal,
-            iconColor: const Color(0xFF2196F3),
+            icon: Icons.opacity_rounded, label: 'KELEMBAPAN', value: _isSensorLoading ? '...' : _humidity, unit: '%',
+            status: 'Normal', statusColor: AppColors.statusNormal, iconColor: const Color(0xFF2196F3),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _ConditionCard(
-            icon: Icons.air_rounded,
-            label: 'AMONIA',
-            value: _isSensorLoading ? '...' : _ammonia,
-            unit: 'PPM',
-            status: ammoniaStatus['status'],
-            statusColor: ammoniaStatus['color'],
-            iconColor: const Color(0xFF4CAF50),
+            icon: Icons.air_rounded, label: 'AMONIA', value: _isSensorLoading ? '...' : _ammonia, unit: 'PPM',
+            status: ammoniaStatus['status'], statusColor: ammoniaStatus['color'], iconColor: const Color(0xFF4CAF50),
           ),
         ),
       ],
@@ -396,9 +370,8 @@ class _HomePageState extends State<HomePage> {
 }
 
 // ════════════════════════════════════════════
-// CONDITION CARD
+// CONDITION CARD UI
 // ════════════════════════════════════════════
-
 class _ConditionCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -409,13 +382,8 @@ class _ConditionCard extends StatelessWidget {
   final Color iconColor;
 
   const _ConditionCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.status,
-    required this.statusColor,
-    required this.iconColor,
+    required this.icon, required this.label, required this.value, required this.unit,
+    required this.status, required this.statusColor, required this.iconColor,
   });
 
   @override
@@ -423,39 +391,19 @@ class _ConditionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
+        color: Colors.white, borderRadius: BorderRadius.circular(14),
+        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 2))],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: iconColor, size: 24),
           const SizedBox(height: 6),
-
-          // Label (Suhu, Kelembapan, Amonia)
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-                letterSpacing: 0.2,
-              ),
-              textAlign: TextAlign.center,
-            ),
+            child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.2), textAlign: TextAlign.center),
           ),
           const SizedBox(height: 4),
-
-          // Angka + Satuan
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(
@@ -463,57 +411,24 @@ class _ConditionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                 const SizedBox(width: 2),
-                Text(
-                  unit,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                Text(unit, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
               ],
             ),
           ),
           const SizedBox(height: 6),
-
-          // Badge Status (Normal / Warning / Alert)
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                  Container(width: 6, height: 6, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
                   const SizedBox(width: 4),
-                  Text(
-                    status,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                    ),
-                  ),
+                  Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
                 ],
               ),
             ),
@@ -525,9 +440,8 @@ class _ConditionCard extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════
-// CONTROL ITEM
+// CONTROL ITEM UI
 // ════════════════════════════════════════════
-
 class _ControlItem extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -537,12 +451,8 @@ class _ControlItem extends StatelessWidget {
   final Function(bool) onToggle;
 
   const _ControlItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.isEnabled,
-    required this.color,
-    required this.onToggle,
+    required this.icon, required this.title, required this.subtitle,
+    required this.isEnabled, required this.color, required this.onToggle,
   });
 
   @override
@@ -550,25 +460,14 @@ class _ControlItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
+        color: Colors.white, borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Color(0x10000000), blurRadius: 6, offset: Offset(0, 2))],
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
@@ -576,23 +475,9 @@ class _ControlItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
                 const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF888888),
-                  ),
-                ),
+                Text(subtitle, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Color(0xFF888888))),
               ],
             ),
           ),
