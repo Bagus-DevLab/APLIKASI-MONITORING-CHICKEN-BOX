@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants/api_config.dart';
 
 import '../constants/floating_navbar.dart';
 import '../constants/app_colors.dart'; // Pastikan ini di-import buat warna Bottom Sheet
@@ -76,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/users/me'),
+        Uri.parse(ApiConfig.usersUrl),
         headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
@@ -116,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (token == null) return;
 
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/devices/'),
+        Uri.parse(ApiConfig.devicesUrl),
         headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
@@ -156,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final token = await _secureStorage.read(key: 'jwt_token');
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/status'),
+        Uri.parse(ApiConfig.deviceStatusUrl(_activeDeviceId!)),
         headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
       if (response.statusCode == 200) {
@@ -184,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final token = await _secureStorage.read(key: 'jwt_token');
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/alerts'),
+        Uri.parse(ApiConfig.deviceAlertsUrl(_activeDeviceId!)),
         headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
