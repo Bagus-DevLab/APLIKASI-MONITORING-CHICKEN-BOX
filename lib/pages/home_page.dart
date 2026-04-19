@@ -96,7 +96,7 @@ class _HomePageState extends State<HomePage> {
       if (token == null) return;
 
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/devices/'),
+        Uri.parse(ApiConfig.devicesUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -196,7 +196,7 @@ class _HomePageState extends State<HomePage> {
       if (token == null) throw Exception("Token tidak ditemukan");
 
       final response = await http.post(
-        Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/control'),
+        Uri.parse(ApiConfig.deviceControlUrl(_activeDeviceId!)),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
