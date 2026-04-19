@@ -63,31 +63,85 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ── FUNGSI LUPA PASSWORD (FIREBASE) ──
-  Future<void> _handleForgotPassword() async {
-    final email = _emailController.text.trim();
+  // ── FUNGSI LUPA PASSWORD (FIREBASE) DENGAN POP-UP ──
+  void _handleForgotPassword() {
+    // Siapkan controller untuk pop-up, otomatis terisi kalau user sudah mengetik email di form login
+    final TextEditingController resetEmailController = TextEditingController(text: _emailController.text.trim());
 
-    if (email.isEmpty) {
-      _showError('Masukkan email Anda di kolom atas untuk mereset password.');
-      return;
-    }
-
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Link reset password telah dikirim ke email Anda.'),
-            backgroundColor: Color(0xFF2E7D32), // Warna sukses (Hijau)
-            behavior: SnackBarBehavior.floating,
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Reset Password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Masukkan email Anda yang terdaftar. Kami akan mengirimkan link untuk membuat password baru.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF666666), height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'Email Anda',
+                  prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF5C4033)),
+                  filled: true,
+                  fillColor: const Color(0xFFF5F5F5),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
           ),
+          actionsPadding: const EdgeInsets.only(right: 16, bottom: 16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Color(0xFF999999), fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5C4033),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final email = resetEmailController.text.trim();
+                if (email.isEmpty) {
+                  _showError('Email tidak boleh kosong.');
+                  return;
+                }
+
+                Navigator.pop(context); // Tutup pop-up nya dulu
+
+                // Tembak Firebase untuk kirim link
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Link reset password telah dikirim ke email Anda.'),
+                        backgroundColor: Color(0xFF2E7D32), // Hijau Sukses
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
+                  _showError('Gagal mengirim link: ${e.message}');
+                } catch (error) {
+                  _showError('Terjadi kesalahan sistem: $error');
+                }
+              },
+              child: const Text('Kirim Link', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
+          ],
         );
-      }
-    } on FirebaseAuthException catch (e) {
-      _showError('Gagal mengirim link: ${e.message}');
-    } catch (error) {
-      _showError('Terjadi kesalahan sistem: $error');
-    }
+      },
+    );
   }
 
   // ── FUNGSI LOGIN GOOGLE ──

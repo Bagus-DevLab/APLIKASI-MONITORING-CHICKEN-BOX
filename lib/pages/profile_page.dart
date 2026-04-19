@@ -126,7 +126,26 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- 4. FUNGSI HAPUS AKUN (PERMANEN) ---
+  // --- 4. FUNGSI RESET/GANTI PASSWORD ---
+  Future<void> _handleResetPassword() async {
+    if (_email == 'Memuat...' || _email.isEmpty) {
+      _showSnackBar('Data email belum siap.');
+      return;
+    }
+
+    _showLoadingDialog();
+
+    try {
+      await _auth.sendPasswordResetEmail(email: _email);
+      if (mounted) Navigator.pop(context); // Tutup loading
+      _showSnackBar('Link ganti password telah dikirim ke email $_email', isError: false);
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      _showSnackBar('Gagal mengirim link: $e');
+    }
+  }
+
+  // --- 5. FUNGSI HAPUS AKUN (PERMANEN) ---
   Future<void> _handleDeleteAccount() async {
     _showLoadingDialog();
 
@@ -141,7 +160,6 @@ class _ProfilePageState extends State<ProfilePage> {
       Navigator.pop(context); 
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        // Hapus di Firebase (bodo amat kalau error, lanjut aja)
         try { await _auth.currentUser?.delete(); } catch (_) {}
         await _clearLocalDataAndLogout();
       } else {
@@ -153,24 +171,13 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- 5. LOGIKA CLEANUP & LOGOUT (ANTI CRASH) ---
+  // --- 6. LOGIKA CLEANUP & LOGOUT ---
   Future<void> _clearLocalDataAndLogout() async {
-    _showLoadingDialog(); // Tampilkan loading biar UI nggak nge-freeze
-
     try {
-      // 1. Hapus token keamanan lokal (Sangat Penting)
       await _secureStorage.deleteAll();
-
-      // 2. Logout Firebase & Google (Bungkus pakai try-catch individual!)
-      // Jadi kalau Google error Pigeon, proses logout lokal TETAP BERJALAN.
-      try { await _auth.signOut(); } catch (_) { debugPrint("Firebase logout skipped"); }
-      try { await _googleSignIn.signOut(); } catch (_) { debugPrint("Google logout skipped/crashed"); }
-
+      try { await _auth.signOut(); } catch (_) {}
+      try { await _googleSignIn.signOut(); } catch (_) {}
     } finally {
-      // 3. Tutup Dialog Loading
-      if (mounted) Navigator.pop(context);
-
-      // 4. Pasti tertendang ke halaman Login dengan aman
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
       }
@@ -238,8 +245,23 @@ class _ProfilePageState extends State<ProfilePage> {
                 else
                   ..._myDevices.map((d) => _buildDeviceCard(d)),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
+                // Tombol Ganti Password
+                _buildActionButton(
+                  label: 'Ganti Password via Email',
+                  icon: Icons.lock_reset_rounded,
+                  color: AppColors.primaryBlue,
+                  onTap: () => _showConfirmDialog(
+                    title: 'Ganti Password',
+                    msg: 'Sistem akan mengirimkan link pengaturan ulang password ke email Anda ($_email). Lanjutkan?',
+                    onConfirm: _handleResetPassword,
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+
+                // Tombol Keluar Akun
                 _buildActionButton(
                   label: 'Keluar Akun',
                   icon: Icons.logout_rounded,
@@ -327,8 +349,11 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.statusAlert),
-            onPressed: () { Navigator.pop(context); onConfirm(); },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+            onPressed: () { 
+              Navigator.pop(context); 
+              onConfirm(); 
+            },
             child: Text(confirmText, style: const TextStyle(color: Colors.white)),
           ),
         ],
