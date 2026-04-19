@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../constants/app_colors.dart';
 import '../routes/app_routes.dart';
+import '../constants/api_config.dart';
+
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -41,7 +43,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (token == null) throw Exception("Token tidak ditemukan");
 
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/users/me'),
+        Uri.parse(ApiConfig.usersUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -80,7 +82,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (token == null) return;
 
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/devices/'),
+        Uri.parse(ApiConfig.devicesUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -116,7 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
       final token = await _secureStorage.read(key: 'jwt_token');
 
       final response = await http.post(
-        Uri.parse('https://api.pcb.my.id/devices/$deviceId/unclaim'),
+        Uri.parse(ApiConfig.deviceUnclaimUrl(deviceId)),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
