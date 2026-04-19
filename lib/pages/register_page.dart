@@ -140,7 +140,7 @@ class _RegisterPageState extends State<RegisterPage> {
       await _secureStorage.write(key: 'jwt_token', value: backendToken);
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
       }
     } else {
       throw Exception('Backend menolak registrasi: ${response.statusCode} - ${response.body}');

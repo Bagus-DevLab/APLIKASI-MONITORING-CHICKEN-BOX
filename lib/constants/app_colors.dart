@@ -116,4 +116,28 @@ class AppColorScheme {
     onSurface: Colors.white,
     onError: Colors.white,
   );
+
+  static ThemeData buildDarkTheme() {
+    return ThemeData(
+      colorScheme: const ColorScheme.dark(
+        primary: AppColors.primaryGreen,
+        secondary: AppColors.primaryBlue,
+        tertiary: AppColors.accentOrange,
+        surface: Color(0xFF2A2A2A),
+        error: AppColors.error,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onTertiary: Colors.white,
+        onSurface: Colors.white,
+        onError: Colors.white,
+      ),
+      useMaterial3: true,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.darkBackground,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      scaffoldBackgroundColor: AppColors.darkBackground,
+    );
+  }
 }

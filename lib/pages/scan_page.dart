@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../constants/api_config.dart';
+import '../routes/app_routes.dart';
 
 import '../constants/app_colors.dart';
 // IMPORT halaman Bluetooth kamu di sini:
@@ -207,10 +208,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
-                  );
+                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
                 },
                 icon: const Icon(Icons.bluetooth_rounded, size: 20),
                 label: const Text('Setup WiFi Perangkat'),
