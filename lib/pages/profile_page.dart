@@ -112,17 +112,16 @@ class _ProfilePageState extends State<ProfilePage> {
         headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
-      // Pastikan dialog loading ditutup APAPUN HASILNYA
       if (mounted) Navigator.pop(context); 
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         _showSnackBar('Kandang berhasil dilepas.', isError: false);
-        _fetchMyDevices(); // Refresh list
+        _fetchMyDevices(); 
       } else {
         _showSnackBar('Gagal melepas kandang.');
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context); // Tutup loading jika error jaringan
+      if (mounted) Navigator.pop(context);
       _showSnackBar('Kesalahan jaringan: $e');
     }
   }
@@ -138,35 +137,43 @@ class _ProfilePageState extends State<ProfilePage> {
         headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
-      // WAJIB: Tutup loading spinner DULU sebelum memindahkan halaman
       if (!mounted) return;
       Navigator.pop(context); 
 
-      // Terima status code 200, 202, ataupun 204 dari Backend
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        // Hapus juga di Firebase jika memungkinkan
+        // Hapus di Firebase (bodo amat kalau error, lanjut aja)
         try { await _auth.currentUser?.delete(); } catch (_) {}
-        
-        // Panggil pembersihan lokal dan tendang ke login
         await _clearLocalDataAndLogout();
       } else {
         _showSnackBar('Gagal menghapus akun. Server menolak. (Kode: ${response.statusCode})');
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context); // Tutup loading jika error jaringan
+      if (mounted) Navigator.pop(context);
       _showSnackBar('Terjadi kesalahan jaringan: $e');
     }
   }
 
-  // --- 5. LOGIKA CLEANUP & LOGOUT ---
+  // --- 5. LOGIKA CLEANUP & LOGOUT (ANTI CRASH) ---
   Future<void> _clearLocalDataAndLogout() async {
-    await _secureStorage.deleteAll();
-    await _googleSignIn.signOut();
-    await _auth.signOut();
+    _showLoadingDialog(); // Tampilkan loading biar UI nggak nge-freeze
 
-    if (mounted) {
-      // RESET TOTAL NAVIGASI KE LOGIN (Anti Back Button nyasar)
-      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+    try {
+      // 1. Hapus token keamanan lokal (Sangat Penting)
+      await _secureStorage.deleteAll();
+
+      // 2. Logout Firebase & Google (Bungkus pakai try-catch individual!)
+      // Jadi kalau Google error Pigeon, proses logout lokal TETAP BERJALAN.
+      try { await _auth.signOut(); } catch (_) { debugPrint("Firebase logout skipped"); }
+      try { await _googleSignIn.signOut(); } catch (_) { debugPrint("Google logout skipped/crashed"); }
+
+    } finally {
+      // 3. Tutup Dialog Loading
+      if (mounted) Navigator.pop(context);
+
+      // 4. Pasti tertendang ke halaman Login dengan aman
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+      }
     }
   }
 
@@ -190,7 +197,6 @@ class _ProfilePageState extends State<ProfilePage> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Header Profile
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 40),
@@ -234,7 +240,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 const SizedBox(height: 40),
 
-                // Action Buttons
                 _buildActionButton(
                   label: 'Keluar Akun',
                   icon: Icons.logout_rounded,

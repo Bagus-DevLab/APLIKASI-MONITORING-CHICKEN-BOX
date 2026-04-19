@@ -29,6 +29,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // ── FUNGSI LOGIN EMAIL ──
   Future<void> _handleEmailLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -62,11 +63,39 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // ── FUNGSI LUPA PASSWORD (FIREBASE) ──
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showError('Masukkan email Anda di kolom atas untuk mereset password.');
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Link reset password telah dikirim ke email Anda.'),
+            backgroundColor: Color(0xFF2E7D32), // Warna sukses (Hijau)
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError('Gagal mengirim link: ${e.message}');
+    } catch (error) {
+      _showError('Terjadi kesalahan sistem: $error');
+    }
+  }
+
+  // ── FUNGSI LOGIN GOOGLE ──
   Future<void> _handleGoogleLogin() async {
     setState(() => _isLoading = true);
 
     try {
-      await _googleSignIn.signOut(); // Bersihkan sesi Google yang menggantung
+      await _googleSignIn.signOut();
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
@@ -100,6 +129,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // ── FUNGSI TUKAR TOKEN ──
   Future<void> _exchangeTokenWithBackend(String firebaseToken) async {
     try {
       final response = await http.post(
@@ -118,7 +148,6 @@ class _LoginPageState extends State<LoginPage> {
         await _secureStorage.write(key: 'jwt_token', value: backendToken);
 
         if (mounted) {
-          // Bersihkan seluruh riwayat rute dan masuk ke home (Anti tombol back nyasar)
           Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
         }
       } else {
@@ -129,6 +158,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // ── HELPER ERROR ──
   void _showError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
           SingleChildScrollView(
             child: Column(
               children: [
-                // ── HEADER (coklat) ──
+                // ── HEADER (Coklat) ──
                 Container(
                   color: const Color(0xFF5C4033),
                   width: double.infinity,
@@ -226,7 +256,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: CustomPaint(painter: WavyDividerPainter()),
                 ),
 
-                // ── FORM AREA (abu-abu terang) ──
+                // ── FORM AREA (Abu-abu terang) ──
                 Container(
                   color: const Color(0xFFEBEBEB),
                   width: double.infinity,
@@ -286,6 +316,23 @@ class _LoginPageState extends State<LoginPage> {
                             onPressed: () {
                               setState(() => _obscurePassword = !_obscurePassword);
                             },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── TOMBOL LUPA PASSWORD ──
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          onTap: _handleForgotPassword,
+                          child: const Text(
+                            'Lupa Password?',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF5C4033),
+                            ),
                           ),
                         ),
                       ),
