@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../constants/api_config.dart';
 
 import '../constants/app_colors.dart';
 // IMPORT halaman Bluetooth kamu di sini:
@@ -80,7 +81,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
       final token = await _secureStorage.read(key: 'jwt_token');
 
       final response = await http.post(
-        Uri.parse('https://api.pcb.my.id/devices/claim'),
+        Uri.parse(ApiConfig.claimDeviceUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
