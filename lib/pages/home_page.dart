@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/app_colors.dart';
+import '../constants/api_config.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -149,7 +150,7 @@ class _HomePageState extends State<HomePage> {
       if (token == null) return;
 
       final response = await http.get(
-        Uri.parse('https://api.pcb.my.id/devices/$_activeDeviceId/logs'),
+        Uri.parse(ApiConfig.deviceLogsUrl(_activeDeviceId!)),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',

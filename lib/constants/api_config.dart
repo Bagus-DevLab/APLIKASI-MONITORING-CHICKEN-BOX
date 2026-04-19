@@ -9,19 +9,22 @@ class ApiConfig {
   // Ambil Base URL
   static String get baseUrl => dotenv.env['BASE_URL'] ?? 'https://api.pcb.my.id';
 
-  // --- DAFTAR ENDPOINT API ---
+  // ─── DAFTAR ENDPOINT API ───
   
-  // Auth
+  // Authentication
   static String get authFirebaseLoginUrl => '$baseUrl/auth/firebase/login';
 
   // Users
   static String get usersUrl => '$baseUrl/users/me';
+  // (Method GET untuk baca, PATCH untuk update, DELETE untuk hapus akun bisa pakai URL yang sama ini)
 
   // Devices (Kandang)
   static String get devicesUrl => '$baseUrl/devices/';
   static String get claimDeviceUrl => '$baseUrl/devices/claim';
+  static String get registerDeviceUrl => '$baseUrl/devices/register';     // BARU
+  static String get unclaimedDevicesUrl => '$baseUrl/devices/unclaimed';  // BARU
   
-  // Devices Dinamis (Butuh ID)
+  // Devices Dinamis (Butuh Device ID)
   static String deviceStatusUrl(String deviceId) => '$baseUrl/devices/$deviceId/status';
   static String deviceLogsUrl(String deviceId) => '$baseUrl/devices/$deviceId/logs';
   static String deviceLogsHistoryUrl(String deviceId) => '$baseUrl/devices/$deviceId/logs?limit=50';
