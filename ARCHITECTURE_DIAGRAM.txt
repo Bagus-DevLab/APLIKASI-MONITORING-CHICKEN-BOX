@@ -1,0 +1,226 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    SMART CHICKEN BOX — NETWORKING ARCHITECTURE               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FLUTTER APP LAYER                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │  LoginPage   │  │ DevicesPage  │  │  ScanPage    │  │ ProfilePage  │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │
+│         │                 │                 │                 │            │
+│         └─────────────────┴─────────────────┴─────────────────┘            │
+│                                     │                                       │
+└─────────────────────────────────────┼───────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              SERVICE LAYER                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐          │
+│  │  AuthService     │  │  DeviceService   │  │  UserService     │          │
+│  │                  │  │                  │  │                  │          │
+│  │  • login()       │  │  • getDevices()  │  │  • getProfile()  │          │
+│  │  • logout()      │  │  • control()     │  │  • updateName()  │          │
+│  │  • isAuth()      │  │  • claim()       │  │  • deleteAccount()│         │
+│  │  • getToken()    │  │  • getLogs()     │  │                  │          │
+│  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘          │
+│           │                     │                     │                     │
+│           └─────────────────────┴─────────────────────┘                     │
+│                                 │                                           │
+└─────────────────────────────────┼───────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CORE NETWORK LAYER                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                          DioClient (Singleton)                      │     │
+│  │                                                                     │     │
+│  │  Base URL: https://api.pcb.my.id/api                              │     │
+│  │  Timeout: 30s                                                      │     │
+│  │  Headers: Content-Type: application/json                          │     │
+│  └────────────────────────────────┬───────────────────────────────────┘     │
+│                                   │                                         │
+│                                   ▼                                         │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                       AuthInterceptor                               │     │
+│  │                                                                     │     │
+│  │  onRequest:                                                        │     │
+│  │    • Get token from TokenManager                                   │     │
+│  │    • Inject: Authorization: Bearer <token>                         │     │
+│  │                                                                     │     │
+│  │  onResponse:                                                       │     │
+│  │    • Log X-Request-ID header                                       │     │
+│  │                                                                     │     │
+│  │  onError:                                                          │     │
+│  │    • Parse error response (string vs array)                        │     │
+│  │    • Map status codes to exceptions                                │     │
+│  │    • 401/403 → clearAuth() + triggerLogout()                      │     │
+│  │    • 422 → ValidationException with field errors                   │     │
+│  │    • 429 → RateLimitException                                      │     │
+│  │    • Network errors → NetworkException                             │     │
+│  └────────────────────────────────┬───────────────────────────────────┘     │
+│                                   │                                         │
+└───────────────────────────────────┼─────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          TOKEN MANAGEMENT LAYER                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                        TokenManager (Singleton)                     │     │
+│  │                                                                     │     │
+│  │  Storage: FlutterSecureStorage (encrypted)                         │     │
+│  │                                                                     │     │
+│  │  • saveToken(jwt)                                                  │     │
+│  │  • getToken() → String?                                            │     │
+│  │  • saveUserInfo(email, role)                                       │     │
+│  │  • clearAuth()                                                     │     │
+│  │  • triggerLogout() → Stream<void>                                  │     │
+│  │                                                                     │     │
+│  │  Stored Keys:                                                      │     │
+│  │    • jwt_token                                                     │     │
+│  │    • user_email                                                    │     │
+│  │    • user_role                                                     │     │
+│  └─────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           EXCEPTION HIERARCHY                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│                          ApiException (abstract)                             │
+│                                    │                                         │
+│         ┌──────────────────────────┼──────────────────────────┐             │
+│         │                          │                          │             │
+│  UnauthorizedException    ForbiddenException      ValidationException       │
+│      (401)                    (403)                    (422)                │
+│  → Trigger logout         → Trigger logout      → Field-level errors        │
+│                                                                              │
+│         │                          │                          │             │
+│  NotFoundException        RateLimitException      BadRequestException       │
+│      (404)                    (429)                    (400)                │
+│                          → "Please wait"                                    │
+│                                                                              │
+│         │                          │                          │             │
+│  ServerException      ServiceUnavailableException  NetworkException         │
+│      (500)                    (503)                (timeout/no internet)    │
+│  → Retry once            → "Maintenance"                                    │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          AUTHENTICATION FLOW                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. User clicks "Sign in with Google"                                       │
+│     │                                                                        │
+│     ▼                                                                        │
+│  2. Firebase Auth → Get ID token (max 4096 chars)                           │
+│     │                                                                        │
+│     ▼                                                                        │
+│  3. AuthService.login(idToken)                                              │
+│     │                                                                        │
+│     ▼                                                                        │
+│  4. POST /api/auth/firebase/login                                           │
+│     │                                                                        │
+│     ▼                                                                        │
+│  5. Backend validates Firebase token                                        │
+│     │                                                                        │
+│     ▼                                                                        │
+│  6. Backend returns JWT + user_info                                         │
+│     │                                                                        │
+│     ▼                                                                        │
+│  7. TokenManager.saveToken(jwt)                                             │
+│     │                                                                        │
+│     ▼                                                                        │
+│  8. TokenManager.saveUserInfo(email, role)                                  │
+│     │                                                                        │
+│     ▼                                                                        │
+│  9. Navigate to home screen                                                 │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          AUTOMATIC LOGOUT FLOW                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. User makes API call (e.g., getDevices())                                │
+│     │                                                                        │
+│     ▼                                                                        │
+│  2. AuthInterceptor injects JWT token                                       │
+│     │                                                                        │
+│     ▼                                                                        │
+│  3. Backend returns 401 (expired JWT) or 403 (deactivated account)          │
+│     │                                                                        │
+│     ▼                                                                        │
+│  4. AuthInterceptor.onError() detects 401/403                               │
+│     │                                                                        │
+│     ▼                                                                        │
+│  5. TokenManager.clearAuth() → Delete all stored tokens                     │
+│     │                                                                        │
+│     ▼                                                                        │
+│  6. TokenManager.triggerLogout() → Emit event to stream                     │
+│     │                                                                        │
+│     ▼                                                                        │
+│  7. Root widget listens to stream → Navigate to login screen                │
+│     │                                                                        │
+│     ▼                                                                        │
+│  8. Show "Session expired" message                                          │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ERROR HANDLING FLOW                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  API Call                                                                    │
+│     │                                                                        │
+│     ▼                                                                        │
+│  DioException thrown                                                         │
+│     │                                                                        │
+│     ▼                                                                        │
+│  AuthInterceptor.onError()                                                  │
+│     │                                                                        │
+│     ├─ Network error? → NetworkException                                    │
+│     │                                                                        │
+│     ├─ 400? → BadRequestException                                           │
+│     │                                                                        │
+│     ├─ 401? → UnauthorizedException + clearAuth() + triggerLogout()         │
+│     │                                                                        │
+│     ├─ 403? → ForbiddenException + clearAuth() + triggerLogout()            │
+│     │                                                                        │
+│     ├─ 404? → NotFoundException                                             │
+│     │                                                                        │
+│     ├─ 422? → ValidationException (parse field errors)                      │
+│     │                                                                        │
+│     ├─ 429? → RateLimitException                                            │
+│     │                                                                        │
+│     ├─ 500? → ServerException                                               │
+│     │                                                                        │
+│     ├─ 503? → ServiceUnavailableException                                   │
+│     │                                                                        │
+│     └─ Other? → UnknownException                                            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                              KEY PRINCIPLES                                  ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  1. Single Source of Truth: API_CONTRACT.md                                 ║
+║  2. Automatic Token Management: No manual headers                           ║
+║  3. Global Error Handling: Interceptor catches all errors                   ║
+║  4. Type-Safe Exceptions: Each error code has its own exception class       ║
+║  5. Secure Storage: Encrypted token storage                                 ║
+║  6. Stream-Based Events: Logout events via stream                           ║
+║  7. Comprehensive Logging: All operations logged with Request-ID            ║
+║  8. Contract Compliance: All endpoints, errors, and constraints matched     ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
