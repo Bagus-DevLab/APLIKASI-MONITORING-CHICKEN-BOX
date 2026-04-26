@@ -4,9 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_colors.dart';
-import '../routes/app_routes.dart';
 import '../constants/api_config.dart';
 import '../core/network/dio_client.dart';
+import '../core/network/token_manager.dart';
 import '../core/network/api_exception.dart';
 import '../services/auth_service.dart';
 import '../utils/error_handler.dart';
@@ -173,7 +173,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- 6. LOGIKA CLEANUP & LOGOUT (via AuthService) ---
+  // --- 6. LOGIKA CLEANUP & LOGOUT (via AuthService + Global Listener) ---
   Future<void> _clearLocalDataAndLogout() async {
     try {
       // Clear backend JWT via AuthService (clears TokenManager)
@@ -182,11 +182,12 @@ class _ProfilePageState extends State<ProfilePage> {
       try { await _auth.signOut(); } catch (_) {}
       try { await _googleSignIn.signOut(); } catch (_) {}
 
-      developer.log('✓ Logout complete', name: 'ProfilePage');
+      developer.log('✓ Logout cleanup complete', name: 'ProfilePage');
     } finally {
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
-      }
+      // Trigger the global logout event — the listener in main.dart
+      // handles navigation to LoginPage via navigatorKey.
+      // This is the SINGLE navigation path for all logout scenarios.
+      TokenManager().triggerLogout();
     }
   }
 

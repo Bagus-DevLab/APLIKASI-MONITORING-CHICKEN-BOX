@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:developer' as developer;
 import 'constants/app_colors.dart';
 import 'routes/app_routes.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -8,6 +10,10 @@ import 'core/network/token_manager.dart';
 
 import 'pages/login_page.dart';
 import 'pages/home_screen.dart';
+
+/// Global navigator key — allows navigation from anywhere (interceptors,
+/// services, streams) without needing a BuildContext.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,21 +64,72 @@ void main() async {
   runApp(MyApp(startPage: startPage));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final Widget startPage;
 
   const MyApp({super.key, required this.startPage});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  StreamSubscription<void>? _logoutSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToLogoutEvents();
+  }
+
+  /// Subscribe to the global logout stream from TokenManager.
+  ///
+  /// This is the SINGLE source of truth for all logout navigation:
+  /// - 401 Unauthorized (token expired) → AuthInterceptor calls triggerLogout()
+  /// - 403 Forbidden (account deactivated) → AuthInterceptor calls triggerLogout()
+  /// - Manual logout from ProfilePage → calls triggerLogout()
+  ///
+  /// All paths converge here, guaranteeing the user is always redirected
+  /// to LoginPage regardless of which screen they are on.
+  void _listenToLogoutEvents() {
+    _logoutSubscription = TokenManager().onLogout.listen((_) {
+      developer.log(
+        '⚠ Global logout event received — navigating to LoginPage',
+        name: 'MyApp',
+      );
+
+      final navigator = navigatorKey.currentState;
+      if (navigator != null) {
+        navigator.pushNamedAndRemoveUntil(
+          AppRoutes.login,
+          (route) => false, // Remove ALL routes from the stack
+        );
+      } else {
+        developer.log(
+          '✗ navigatorKey.currentState is null — cannot navigate',
+          name: 'MyApp',
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _logoutSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kandang Pintar',
+      navigatorKey: navigatorKey,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: ThemeMode.light,
       
       // KUNCI PERBAIKAN TOMBOL BACK: Pakai properti 'home', BUKAN 'initialRoute'
-      home: startPage,
+      home: widget.startPage,
 
       onGenerateRoute: AppRoutes.generateRoute,
       debugShowCheckedModeBanner: false,
