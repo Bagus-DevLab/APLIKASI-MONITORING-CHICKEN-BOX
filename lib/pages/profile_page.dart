@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:developer' as developer;
+import 'package:dio/dio.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_colors.dart';
 import '../routes/app_routes.dart';
 import '../constants/api_config.dart';
+import '../core/network/dio_client.dart';
+import '../core/network/api_exception.dart';
+import '../services/auth_service.dart';
+import '../utils/error_handler.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -16,7 +19,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final Dio _dio = DioClient().dio;
+  final AuthService _authService = AuthService();
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -33,26 +37,19 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _fetchUserProfile();
-    _fetchMyDevices();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchUserProfile();
+      _fetchMyDevices();
+    });
   }
 
-  // --- 1. AMBIL DATA PROFIL DARI BACKEND ---
+  // --- 1. AMBIL DATA PROFIL DARI BACKEND (via DioClient) ---
   Future<void> _fetchUserProfile() async {
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      if (token == null) return;
-
-      final response = await http.get(
-        Uri.parse(ApiConfig.usersUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await _dio.get(ApiConfig.usersUrl);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = response.data;
         if (mounted) {
           setState(() {
             _fullName = data['full_name'] ?? data['name'] ?? 'Peternak';
@@ -62,63 +59,65 @@ class _ProfilePageState extends State<ProfilePage> {
           });
         }
       }
+    } on DioException catch (e) {
+      developer.log('✗ Error loading profile: ${e.error}', name: 'ProfilePage');
+      if (mounted) setState(() => _isLoadingProfile = false);
     } catch (e) {
-      debugPrint("Error Load Profile: $e");
+      developer.log('✗ Error loading profile: $e', name: 'ProfilePage');
       if (mounted) setState(() => _isLoadingProfile = false);
     }
   }
 
-  // --- 2. AMBIL DAFTAR KANDANG MILIK USER ---
+  // --- 2. AMBIL DAFTAR KANDANG MILIK USER (via DioClient) ---
   Future<void> _fetchMyDevices() async {
     if (!mounted) return;
     setState(() => _isLoadingDevices = true);
 
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      if (token == null) return;
-
-      final response = await http.get(
-        Uri.parse(ApiConfig.devicesUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await _dio.get(ApiConfig.devicesUrl);
 
       if (response.statusCode == 200) {
+        // Backend returns paginated response: { data: [...], total: N, ... }
+        final data = response.data;
         if (mounted) {
           setState(() {
-            _myDevices = jsonDecode(response.body);
+            _myDevices = data is Map ? (data['data'] as List? ?? []) : (data as List? ?? []);
             _isLoadingDevices = false;
           });
         }
       } else {
         if (mounted) setState(() => _isLoadingDevices = false);
       }
+    } on DioException catch (e) {
+      developer.log('✗ Error fetching devices: ${e.error}', name: 'ProfilePage');
+      if (mounted) setState(() => _isLoadingDevices = false);
     } catch (e) {
-      debugPrint("Error Fetch Devices: $e");
+      developer.log('✗ Error fetching devices: $e', name: 'ProfilePage');
       if (mounted) setState(() => _isLoadingDevices = false);
     }
   }
 
-  // --- 3. FUNGSI UNCLAIM (LEPAS KANDANG) ---
+  // --- 3. FUNGSI UNCLAIM (LEPAS KANDANG) via DioClient ---
   Future<void> _unclaimDevice(String deviceId) async {
     _showLoadingDialog();
 
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      final response = await http.post(
-        Uri.parse(ApiConfig.deviceUnclaimUrl(deviceId)),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-      );
+      final response = await _dio.post(ApiConfig.deviceUnclaimUrl(deviceId));
 
-      if (mounted) Navigator.pop(context); 
+      if (mounted) Navigator.pop(context);
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
         _showSnackBar('Kandang berhasil dilepas.', isError: false);
-        _fetchMyDevices(); 
+        _fetchMyDevices();
       } else {
         _showSnackBar('Gagal melepas kandang.');
+      }
+    } on DioException catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (e.error is ApiException) {
+        ErrorHandler.handleApiException(context, e.error as ApiException);
+      } else {
+        _showSnackBar('Kesalahan jaringan: ${e.message}');
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
@@ -145,25 +144,28 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- 5. FUNGSI HAPUS AKUN (PERMANEN) ---
+  // --- 5. FUNGSI HAPUS AKUN (PERMANEN) via DioClient ---
   Future<void> _handleDeleteAccount() async {
     _showLoadingDialog();
 
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      final response = await http.delete(
-        Uri.parse(ApiConfig.usersUrl),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-      );
+      final response = await _dio.delete(ApiConfig.usersUrl);
 
       if (!mounted) return;
-      Navigator.pop(context); 
+      Navigator.pop(context);
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
         try { await _auth.currentUser?.delete(); } catch (_) {}
         await _clearLocalDataAndLogout();
       } else {
         _showSnackBar('Gagal menghapus akun. Server menolak. (Kode: ${response.statusCode})');
+      }
+    } on DioException catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (e.error is ApiException) {
+        ErrorHandler.handleApiException(context, e.error as ApiException);
+      } else {
+        _showSnackBar('Terjadi kesalahan jaringan: ${e.message}');
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
@@ -171,12 +173,16 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- 6. LOGIKA CLEANUP & LOGOUT ---
+  // --- 6. LOGIKA CLEANUP & LOGOUT (via AuthService) ---
   Future<void> _clearLocalDataAndLogout() async {
     try {
-      await _secureStorage.deleteAll();
+      // Clear backend JWT via AuthService (clears TokenManager)
+      await _authService.logout();
+      // Clear Firebase and Google sessions
       try { await _auth.signOut(); } catch (_) {}
       try { await _googleSignIn.signOut(); } catch (_) {}
+
+      developer.log('✓ Logout complete', name: 'ProfilePage');
     } finally {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);

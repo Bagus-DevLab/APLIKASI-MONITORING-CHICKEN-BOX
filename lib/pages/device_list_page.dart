@@ -44,7 +44,12 @@ class _DeviceListPageState extends State<DeviceListPage> {
   @override
   void initState() {
     super.initState();
-    _loadDevices();
+    // Defer the API call to the next frame so that TokenManager
+    // has finished initializing after navigation completes.
+    // This prevents the "No token available" race condition.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDevices();
+    });
   }
 
   /// Load devices from API

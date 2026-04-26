@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../routes/app_routes.dart';
-import '../constants/api_config.dart';
+import '../services/auth_service.dart';
+import '../core/network/api_exception.dart';
+import '../utils/error_handler.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,8 +18,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final AuthService _authService = AuthService();
 
   @override
   void dispose() {
@@ -183,32 +182,44 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ── FUNGSI TUKAR TOKEN ──
+  // ── FUNGSI TUKAR TOKEN (via AuthService + TokenManager) ──
   Future<void> _exchangeTokenWithBackend(String firebaseToken) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.authFirebaseLoginUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({'id_token': firebaseToken}),
-      );
+      // AuthService.login() handles:
+      // 1. POST /api/auth/firebase/login
+      // 2. Storing JWT in TokenManager (secure storage)
+      // 3. Storing user info (email, role)
+      final loginResponse = await _authService.login(firebaseToken);
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        final String backendToken = responseData['access_token'];
-        
-        await _secureStorage.write(key: 'jwt_token', value: backendToken);
+      debugPrint('✓ Backend login OK: ${loginResponse.userInfo.email} (${loginResponse.userInfo.role})');
 
-        if (mounted) {
-          Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
-        }
-      } else {
-        throw Exception('Server menolak login: ${response.statusCode}');
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
       }
+    } on UnauthorizedException catch (e) {
+      // 401 - Firebase token invalid or expired
+      _showError('Token tidak valid: ${e.message}');
+    } on ForbiddenException catch (e) {
+      // 403 - Account deactivated by admin
+      if (mounted) {
+        ErrorHandler.showErrorDialog(context, 'Akun Dinonaktifkan', e.message);
+      }
+    } on ValidationException catch (e) {
+      // 422 - Token exceeds 4096 chars or missing
+      _showError('Validasi gagal: ${e.allMessages}');
+    } on RateLimitException catch (e) {
+      // 429 - Too many login attempts (10/minute)
+      if (mounted) {
+        ErrorHandler.showRateLimitSnackbar(context, e.message);
+      }
+    } on NetworkException catch (e) {
+      // Network error - no internet, timeout, etc.
+      _showError('Koneksi gagal: ${e.message}');
+    } on ApiException catch (e) {
+      // Catch-all for other API errors
+      _showError('Server error: ${e.message}');
     } catch (e) {
-      _showError('Backend Error: Server sedang tidak dapat dijangkau.');
+      _showError('Terjadi kesalahan sistem: $e');
     }
   }
 

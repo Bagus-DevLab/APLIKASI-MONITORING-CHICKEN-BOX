@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:developer' as developer;
+import 'package:dio/dio.dart';
 import '../constants/api_config.dart';
+import '../core/network/dio_client.dart';
+import '../services/auth_service.dart';
 
 import '../constants/floating_navbar.dart';
-import '../constants/app_colors.dart'; // Pastikan ini di-import buat warna Bottom Sheet
+import '../constants/app_colors.dart';
 import 'device_list_page.dart';
 import 'devices_page.dart';
 import 'scan_page.dart';
@@ -23,8 +24,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  // --- VARIABEL STATUS ALAT & NOTIFIKASI ---
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  // --- CORE SERVICES ---
+  final Dio _dio = DioClient().dio;
+  final AuthService _authService = AuthService();
   Timer? _statusTimer;
   String? _activeDeviceId;
   bool _isDeviceOnline = false;
@@ -36,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _pictureUrl = '';
 
   // --- VARIABEL NOTIFIKASI ---
-  List<dynamic> _notifications = []; // Nampung data notif dari API
+  List<dynamic> _notifications = [];
   int _notificationCount = 0;
 
   @override
@@ -67,27 +69,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // --- 2. LOGIKA NAMA & FOTO USER API (/users/me) ---
+  // --- 2. LOGIKA NAMA & FOTO USER API (/users/me) via DioClient ---
   Future<void> _loadUserProfile() async {
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      if (token == null) {
-        if (mounted) setState(() => _userName = 'Peternak');
-        return;
-      }
-
-      final response = await http.get(
-        Uri.parse(ApiConfig.usersUrl),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-      );
+      final response = await _dio.get(ApiConfig.usersUrl);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = response.data;
         String fetchedName = data['full_name'] ?? data['name'] ?? data['email'].toString().split('@')[0] ?? 'Peternak';
         String fetchedPic = data['picture'] ?? '';
-
-        await _secureStorage.write(key: 'user_name', value: fetchedName);
-        await _secureStorage.write(key: 'user_pic', value: fetchedPic);
 
         if (mounted) {
           setState(() {
@@ -99,39 +89,29 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) setState(() => _userName = 'Peternak');
       }
     } catch (e) {
-      String? savedName = await _secureStorage.read(key: 'user_name');
-      String? savedPic = await _secureStorage.read(key: 'user_pic');
-      if (mounted) {
-        setState(() {
-          _userName = savedName ?? 'Peternak';
-          _pictureUrl = savedPic ?? '';
-        });
-      }
+      developer.log('✗ Error loading profile: $e', name: 'HomeScreen');
+      if (mounted) setState(() => _userName = 'Peternak');
     }
   }
 
-  // --- 3. LOGIKA MENCARI DEVICE & CEK STATUS & CEK NOTIF ---
+  // --- 3. LOGIKA MENCARI DEVICE & CEK STATUS & CEK NOTIF (via DioClient) ---
   Future<void> _initializeDeviceStatus() async {
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      if (token == null) return;
-
-      final response = await http.get(
-        Uri.parse(ApiConfig.devicesUrl),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-      );
+      final response = await _dio.get(ApiConfig.devicesUrl);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List && data.isNotEmpty) {
-          _activeDeviceId = data[0]['id'].toString();
+        final data = response.data;
+        // Backend returns paginated response: { data: [...], total: N, ... }
+        final List devices = data is Map ? (data['data'] as List? ?? []) : (data is List ? data : []);
+        if (devices.isNotEmpty) {
+          _activeDeviceId = devices[0]['id'].toString();
 
           await _checkOnlineStatus();
-          await _fetchNotifications(); // Ambil notifikasi juga di awal
+          await _fetchNotifications();
 
           _statusTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
             _checkOnlineStatus();
-            _fetchNotifications(); // Update notif tiap 10 detik bareng heartbeat
+            _fetchNotifications();
           });
         } else {
           if (mounted) {
@@ -143,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
+      developer.log('✗ Error initializing device status: $e', name: 'HomeScreen');
       if (mounted) {
         setState(() {
           _isCheckingStatus = false;
@@ -155,13 +136,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkOnlineStatus() async {
     if (_activeDeviceId == null) return;
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      final response = await http.get(
-        Uri.parse(ApiConfig.deviceStatusUrl(_activeDeviceId!)),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-      );
+      final response = await _dio.get(ApiConfig.deviceStatusUrl(_activeDeviceId!));
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = response.data;
         if (mounted) {
           setState(() {
             _isDeviceOnline = data['is_online'] ?? false;
@@ -179,27 +156,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // --- 4. LOGIKA AMBIL NOTIFIKASI ALERTS ---
+  // --- 4. LOGIKA AMBIL NOTIFIKASI ALERTS (via DioClient) ---
   Future<void> _fetchNotifications() async {
     if (_activeDeviceId == null) return;
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      final response = await http.get(
-        Uri.parse(ApiConfig.deviceAlertsUrl(_activeDeviceId!)),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-      );
+      final response = await _dio.get(ApiConfig.deviceAlertsUrl(_activeDeviceId!));
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final data = response.data;
+        // Backend returns paginated response: { data: [...], total: N, ... }
+        final List alerts = data is Map ? (data['data'] as List? ?? []) : (data is List ? data : []);
         if (mounted) {
           setState(() {
-            _notifications = data;
-            _notificationCount = data.length; // Update angka merah di lonceng
+            _notifications = alerts;
+            _notificationCount = alerts.length;
           });
         }
       }
     } catch (e) {
-      debugPrint("Error fetching notifications: $e");
+      developer.log('✗ Error fetching notifications: $e', name: 'HomeScreen');
     }
   }
 
