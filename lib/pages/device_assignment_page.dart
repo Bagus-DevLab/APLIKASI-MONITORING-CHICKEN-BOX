@@ -120,20 +120,26 @@ class _DeviceAssignmentPageState extends State<DeviceAssignmentPage> {
       // Step 1: Resolve email → user UUID
       final user = await _deviceService.findUserByEmail(email);
 
-      if (user.id == null) {
+      // CRITICAL-3 FIX: Extract to non-nullable local variable
+      // instead of using force unwrap (user.id!) after null check.
+      final String? userId = user.id;
+      if (userId == null) {
         throw NotFoundException('User ID tidak ditemukan untuk email "$email".');
       }
 
       // Step 2: Assign user to device
       await _deviceService.assignUserToDevice(
         deviceId: widget.device.id,
-        userId: user.id!,
+        userId: userId,
         role: _selectedRole,
       );
 
       // Step 3: Success — clear input and refresh
       if (!mounted) return;
       _emailController.clear();
+      // CRITICAL-1 FIX: Second mounted check before using context
+      // after _emailController.clear() which is a synchronous gap.
+      if (!mounted) return;
       ErrorHandler.showSuccessSnackbar(
         context,
         '${user.fullName} berhasil ditambahkan sebagai ${_selectedRole == 'operator' ? 'Operator' : 'Viewer'}.',

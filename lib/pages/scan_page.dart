@@ -323,6 +323,9 @@ class _ScanPageState extends State<ScanPage>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+              // CRITICAL-2 FIX: Check mounted before setState/camera
+              // after dialog pop — widget may have been disposed.
+              if (!mounted) return;
               setState(() => _isScanning = true);
               _cameraController.start();
             },
@@ -331,6 +334,9 @@ class _ScanPageState extends State<ScanPage>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
+              // CRITICAL-2 FIX: Check mounted before calling async
+              // method that uses context and setState internally.
+              if (!mounted) return;
               _processClaimDevice(macAddress);
             },
             style: ElevatedButton.styleFrom(
