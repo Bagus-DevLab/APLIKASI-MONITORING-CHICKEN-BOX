@@ -207,9 +207,13 @@ class _DeviceAssignmentPageState extends State<DeviceAssignmentPage> {
     );
 
     if (confirmed != true) return;
-
     if (!mounted) return;
-    ErrorHandler.showLoadingDialog(context, message: 'Menghapus akses...');
+
+    // ── OPTIMISTIC UI: Remove from list immediately ──
+    final int index = _assignments.indexOf(assignment);
+    if (index != -1) {
+      setState(() => _assignments.removeAt(index));
+    }
 
     try {
       await _deviceService.unassignUserFromDevice(
@@ -218,19 +222,26 @@ class _DeviceAssignmentPageState extends State<DeviceAssignmentPage> {
       );
 
       if (!mounted) return;
-      ErrorHandler.hideLoadingDialog(context);
       ErrorHandler.showSuccessSnackbar(
         context,
         '${assignment.userName} berhasil dihapus.',
       );
+
+      // Final sync with backend to ensure consistency
       await _loadAssignments();
     } on ApiException catch (e) {
+      // ── ROLLBACK: Re-insert the assignment on failure ──
       if (!mounted) return;
-      ErrorHandler.hideLoadingDialog(context);
+      if (index != -1) {
+        setState(() => _assignments.insert(index, assignment));
+      }
       ErrorHandler.handleApiException(context, e);
     } catch (e) {
+      // ── ROLLBACK: Re-insert the assignment on failure ──
       if (!mounted) return;
-      ErrorHandler.hideLoadingDialog(context);
+      if (index != -1) {
+        setState(() => _assignments.insert(index, assignment));
+      }
       ErrorHandler.showErrorSnackbar(
         context,
         'Gagal menghapus: ${e.toString()}',
