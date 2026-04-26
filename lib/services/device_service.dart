@@ -5,8 +5,10 @@ import '../core/network/api_exception.dart';
 import '../constants/api_config.dart';
 import '../models/common/paginated_response.dart';
 import '../models/device/device.dart';
+import '../models/device/device_assignment.dart';
 import '../models/device/sensor_log.dart';
 import '../models/device/device_component.dart';
+import '../models/auth/user_info.dart';
 
 /// Device management service for handling device-related API calls
 /// 
@@ -490,6 +492,339 @@ class DeviceService {
     } catch (e) {
       developer.log(
         '✗ Unexpected error loading logs: $e',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw UnknownException('Terjadi kesalahan yang tidak diketahui: $e');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DEVICE ASSIGNMENT METHODS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Find a user by email via the admin users endpoint
+  ///
+  /// Endpoint: GET /api/admin/users
+  /// Rate Limit: 30/minute
+  /// Auth Required: Yes (admin+)
+  ///
+  /// Fetches the first page of users and searches for an exact email match.
+  /// The backend returns paginated results sorted by created_at DESC.
+  ///
+  /// Parameters:
+  /// - [email]: Email address to search for (case-insensitive match)
+  ///
+  /// Returns:
+  /// - [UserInfo] with `id` populated
+  ///
+  /// Throws:
+  /// - [NotFoundException] → No user found with that email
+  /// - [ForbiddenException] (403) → Caller is not admin+
+  /// - [RateLimitException] (429)
+  /// - [NetworkException] → Connection error
+  Future<UserInfo> findUserByEmail(String email) async {
+    developer.log(
+      '→ Searching for user by email: $email',
+      name: 'DeviceService',
+    );
+
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty) {
+      throw ArgumentError('Email tidak boleh kosong');
+    }
+
+    try {
+      // Fetch users page by page until we find a match or exhaust all pages
+      int currentPage = 1;
+      const int pageLimit = 100; // Max allowed by backend
+
+      while (true) {
+        final response = await _dio.get(
+          ApiConfig.adminUsersUrl,
+          queryParameters: {
+            'page': currentPage,
+            'limit': pageLimit,
+          },
+        );
+
+        if (response.statusCode != 200) {
+          throw UnknownException(
+            'Gagal mencari user dengan status ${response.statusCode}',
+            statusCode: response.statusCode,
+          );
+        }
+
+        final paginated = PaginatedResponse<UserInfo>.fromJson(
+          response.data,
+          UserInfo.fromJson,
+        );
+
+        // Search for exact email match in current page
+        for (final user in paginated.data) {
+          if (user.email.toLowerCase() == normalizedEmail) {
+            developer.log(
+              '✓ Found user: ${user.email} (id: ${user.id})',
+              name: 'DeviceService',
+            );
+            return user;
+          }
+        }
+
+        // If no more pages, user not found
+        if (!paginated.hasNextPage) break;
+        currentPage++;
+      }
+
+      // No match found across all pages
+      developer.log(
+        '✗ User not found: $email',
+        name: 'DeviceService',
+      );
+      throw NotFoundException('User dengan email "$email" tidak ditemukan.');
+    } on ApiException {
+      rethrow;
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        developer.log(
+          '✗ Failed to search user: ${e.error}',
+          name: 'DeviceService',
+          error: e.error,
+        );
+        throw e.error as ApiException;
+      }
+      developer.log(
+        '✗ Unexpected error searching user: ${e.message}',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw NetworkException('Terjadi kesalahan jaringan: ${e.message}');
+    } catch (e) {
+      if (e is ArgumentError) rethrow;
+      developer.log(
+        '✗ Unexpected error searching user: $e',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw UnknownException('Terjadi kesalahan yang tidak diketahui: $e');
+    }
+  }
+
+  /// Assign a user to a device with a specific role
+  ///
+  /// Endpoint: POST /api/devices/{device_id}/assign
+  /// Rate Limit: 20/minute
+  /// Auth Required: Yes (owner or super_admin)
+  ///
+  /// If the target user's current role is "user" (default), they are
+  /// automatically promoted to the assigned role by the backend.
+  ///
+  /// Parameters:
+  /// - [deviceId]: Target device UUID
+  /// - [userId]: Target user UUID (obtained via [findUserByEmail])
+  /// - [role]: Access level — "operator" or "viewer"
+  ///
+  /// Returns:
+  /// - [DeviceAssignment] the newly created assignment
+  ///
+  /// Throws:
+  /// - [BadRequestException] (400) → Self-assign, duplicate, or target is admin+
+  /// - [NotFoundException] (404) → User not found
+  /// - [ForbiddenException] (403) → Caller is not device owner
+  /// - [RateLimitException] (429)
+  /// - [NetworkException] → Connection error
+  Future<DeviceAssignment> assignUserToDevice({
+    required String deviceId,
+    required String userId,
+    required String role,
+  }) async {
+    developer.log(
+      '→ Assigning user $userId to device $deviceId as $role',
+      name: 'DeviceService',
+    );
+
+    try {
+      final response = await _dio.post(
+        ApiConfig.deviceAssignUrl(deviceId),
+        data: {
+          'user_id': userId,
+          'role': role,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw UnknownException(
+          'Gagal assign user dengan status ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final assignment = DeviceAssignment.fromJson(response.data);
+
+      developer.log(
+        '✓ User assigned: ${assignment.userEmail} as ${assignment.role}',
+        name: 'DeviceService',
+      );
+
+      return assignment;
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        developer.log(
+          '✗ Failed to assign user: ${e.error}',
+          name: 'DeviceService',
+          error: e.error,
+        );
+        throw e.error as ApiException;
+      }
+      developer.log(
+        '✗ Unexpected error assigning user: ${e.message}',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw NetworkException('Terjadi kesalahan jaringan: ${e.message}');
+    } catch (e) {
+      developer.log(
+        '✗ Unexpected error assigning user: $e',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw UnknownException('Terjadi kesalahan yang tidak diketahui: $e');
+    }
+  }
+
+  /// Get all users assigned to a device
+  ///
+  /// Endpoint: GET /api/devices/{device_id}/assignments
+  /// Rate Limit: 30/minute
+  /// Auth Required: Yes (owner or super_admin)
+  /// Response Format: Plain JSON array (NOT paginated)
+  ///
+  /// Parameters:
+  /// - [deviceId]: Target device UUID
+  ///
+  /// Returns:
+  /// - [List<DeviceAssignment>] all assignments for this device
+  ///
+  /// Throws:
+  /// - [ForbiddenException] (403) → Caller is not device owner
+  /// - [RateLimitException] (429)
+  /// - [NetworkException] → Connection error
+  Future<List<DeviceAssignment>> getDeviceAssignments({
+    required String deviceId,
+  }) async {
+    developer.log(
+      '→ Loading assignments for device $deviceId',
+      name: 'DeviceService',
+    );
+
+    try {
+      final response = await _dio.get(
+        ApiConfig.deviceAssignmentsUrl(deviceId),
+      );
+
+      if (response.statusCode != 200) {
+        throw UnknownException(
+          'Gagal memuat daftar assignment dengan status ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+
+      // Response is a plain JSON array, NOT paginated
+      final List<dynamic> data = response.data as List<dynamic>;
+      final assignments = data
+          .map((item) =>
+              DeviceAssignment.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      developer.log(
+        '✓ Loaded ${assignments.length} assignments',
+        name: 'DeviceService',
+      );
+
+      return assignments;
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        developer.log(
+          '✗ Failed to load assignments: ${e.error}',
+          name: 'DeviceService',
+          error: e.error,
+        );
+        throw e.error as ApiException;
+      }
+      developer.log(
+        '✗ Unexpected error loading assignments: ${e.message}',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw NetworkException('Terjadi kesalahan jaringan: ${e.message}');
+    } catch (e) {
+      developer.log(
+        '✗ Unexpected error loading assignments: $e',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw UnknownException('Terjadi kesalahan yang tidak diketahui: $e');
+    }
+  }
+
+  /// Remove a user's assignment from a device
+  ///
+  /// Endpoint: DELETE /api/devices/{device_id}/assign/{user_id}
+  /// Rate Limit: 20/minute
+  /// Auth Required: Yes (owner or super_admin)
+  ///
+  /// Parameters:
+  /// - [deviceId]: Target device UUID
+  /// - [userId]: User UUID to unassign
+  ///
+  /// Throws:
+  /// - [NotFoundException] (404) → Assignment not found
+  /// - [ForbiddenException] (403) → Caller is not device owner
+  /// - [RateLimitException] (429)
+  /// - [NetworkException] → Connection error
+  Future<void> unassignUserFromDevice({
+    required String deviceId,
+    required String userId,
+  }) async {
+    developer.log(
+      '→ Unassigning user $userId from device $deviceId',
+      name: 'DeviceService',
+    );
+
+    try {
+      final response = await _dio.delete(
+        ApiConfig.deviceUnassignUrl(deviceId, userId),
+      );
+
+      if (response.statusCode != 200) {
+        throw UnknownException(
+          'Gagal menghapus assignment dengan status ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+
+      developer.log(
+        '✓ User unassigned successfully',
+        name: 'DeviceService',
+      );
+    } on DioException catch (e) {
+      if (e.error is ApiException) {
+        developer.log(
+          '✗ Failed to unassign user: ${e.error}',
+          name: 'DeviceService',
+          error: e.error,
+        );
+        throw e.error as ApiException;
+      }
+      developer.log(
+        '✗ Unexpected error unassigning user: ${e.message}',
+        name: 'DeviceService',
+        error: e,
+      );
+      throw NetworkException('Terjadi kesalahan jaringan: ${e.message}');
+    } catch (e) {
+      developer.log(
+        '✗ Unexpected error unassigning user: $e',
         name: 'DeviceService',
         error: e,
       );

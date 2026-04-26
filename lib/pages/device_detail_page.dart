@@ -9,6 +9,7 @@ import '../models/common/paginated_response.dart';
 import '../core/network/api_exception.dart';
 import '../utils/error_handler.dart';
 import '../constants/app_colors.dart';
+import 'device_assignment_page.dart';
 
 /// Device Detail Page - Shows sensor data and control switches for a specific device
 /// 
@@ -329,6 +330,22 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.people_outline, color: Colors.white),
+            tooltip: 'Kelola Akses',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DeviceAssignmentPage(
+                    device: widget.device,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),

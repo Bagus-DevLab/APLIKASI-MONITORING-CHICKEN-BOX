@@ -2,13 +2,22 @@
 /// 
 /// Based on API_CONTRACT.md Section 3.1: Authentication
 /// Returned as part of LoginResponse and GET /api/users/me
+/// 
+/// Note: The `id` field is nullable because the login response's
+/// nested `user_info` object does not include it, while
+/// `GET /api/users/me` and `GET /api/admin/users` do.
 class UserInfo {
+  /// User UUID — present in /users/me and /admin/users responses,
+  /// absent in the login response's nested user_info object.
+  final String? id;
+
   final String email;
   final String fullName;
   final String? picture;
   final String role;
 
   UserInfo({
+    this.id,
     required this.email,
     required this.fullName,
     this.picture,
@@ -17,6 +26,7 @@ class UserInfo {
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
     return UserInfo(
+      id: json['id'] as String?,
       email: json['email'] as String,
       fullName: json['full_name'] as String,
       picture: json['picture'] as String?,
@@ -26,6 +36,7 @@ class UserInfo {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
       'email': email,
       'full_name': fullName,
       'picture': picture,
