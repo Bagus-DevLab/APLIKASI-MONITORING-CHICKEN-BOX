@@ -1,35 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart';
 import 'constants/app_colors.dart';
 import 'routes/app_routes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'constants/api_config.dart';
+import 'core/network/token_manager.dart';
 
-// Import langsung halamannya untuk startPage
 import 'pages/login_page.dart';
 import 'pages/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Tipe datanya diubah jadi Widget, bukan String
+
   Widget startPage = const LoginPage();
 
   try {
     await Firebase.initializeApp();
     await ApiConfig.initialize();
 
-    const secureStorage = FlutterSecureStorage();
-    final String? token = await secureStorage.read(key: 'jwt_token');
+    // Use TokenManager (which has resetOnError: true and corruption
+    // detection built in) instead of raw FlutterSecureStorage.
+    final tokenManager = TokenManager();
 
-    // Langsung tembak ke Widget HomeScreen kalau sudah login
-    if (token != null && token.isNotEmpty) {
-      startPage = const HomeScreen();
+    // Proactive health check: detect and clear corrupted storage
+    // BEFORE attempting to read the token.
+    final wasCorrupted = await tokenManager.detectAndClearCorruption();
+    if (wasCorrupted) {
+      debugPrint("======== SECURE STORAGE WAS CORRUPTED ========");
+      debugPrint("Storage cleared. User will need to login again.");
+      debugPrint("===============================================");
+      // startPage stays as LoginPage
+    } else {
+      // Storage is healthy — check for existing session
+      final String? token = await tokenManager.getToken();
+      if (token != null && token.isNotEmpty) {
+        startPage = const HomeScreen();
+      }
     }
+  } on PlatformException catch (e) {
+    // Last-resort catch for any PlatformException that slips through
+    // TokenManager's internal handling (e.g., during detectAndClearCorruption
+    // itself, or if deleteAll() also fails).
+    debugPrint("======== PLATFORM EXCEPTION DI MAIN ========");
+    debugPrint("Code: ${e.code}");
+    debugPrint("Message: ${e.message}");
+    debugPrint("Details: ${e.details}");
+    debugPrint("Falling back to LoginPage.");
+    debugPrint("============================================");
+    // startPage stays as LoginPage — safest fallback
   } catch (e) {
     debugPrint("======== ERROR DI MAIN ========");
     debugPrint(e.toString());
     debugPrint("===============================");
+    // startPage stays as LoginPage
   }
 
   runApp(MyApp(startPage: startPage));

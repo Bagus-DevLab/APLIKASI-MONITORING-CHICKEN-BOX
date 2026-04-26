@@ -8,10 +8,16 @@
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- allowBackup=false prevents Android Auto Backup from restoring
+         encrypted SharedPreferences without the Android Keystore key,
+         which causes BadPaddingException / BAD_DECRYPT crashes on reinstall.
+         See: https://github.com/mogol/flutter_secure_storage/issues/88 -->
     <application
         android:label="palcomtech chicken box"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
