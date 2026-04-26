@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:developer' as developer;
+import 'package:dio/dio.dart';
+import '../core/network/dio_client.dart';
 import '../constants/app_colors.dart';
 import '../constants/api_config.dart';
 
@@ -16,7 +16,7 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   int _historyTabIndex = 0;
 
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final Dio _dio = DioClient().dio;
 
   bool _isLoading = true;
   String? _activeDeviceId;
@@ -26,56 +26,64 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   void initState() {
     super.initState();
-    _fetchHistoryData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchHistoryData();
+    });
   }
 
-  // --- FUNGSI AMBIL DATA DARI API ---
+  // --- FUNGSI AMBIL DATA DARI API (via DioClient) ---
   Future<void> _fetchHistoryData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final token = await _secureStorage.read(key: 'jwt_token');
-      if (token == null) throw Exception("Token tidak ada");
-
       // 1. Dapatkan Device ID dulu
-      final devResponse = await http.get(
-        Uri.parse(ApiConfig.devicesUrl),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-      );
+      // AuthInterceptor handles the token automatically.
+      final devResponse = await _dio.get(ApiConfig.devicesUrl);
 
       if (devResponse.statusCode == 200) {
-        final devData = jsonDecode(devResponse.body);
-        if (devData is List && devData.isNotEmpty) {
-          _activeDeviceId = devData[0]['id'].toString();
+        final devData = devResponse.data;
+        // Backend returns paginated response: { data: [...], total, page, ... }
+        final List devices = devData is Map
+            ? (devData['data'] as List? ?? [])
+            : (devData is List ? devData : []);
 
-          // 2. Tembak API Logs (Untuk Suhu, Kelembapan, Amonia) - Ambil 50 data terakhir
-          final logsResponse = await http.get(
-            Uri.parse(ApiConfig.deviceLogsHistoryUrl(_activeDeviceId!)), // <-- Gunakan fungsi History
-            headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        if (devices.isNotEmpty) {
+          _activeDeviceId = devices[0]['id'].toString();
+
+          // 2. Fetch Logs (Suhu, Kelembapan, Amonia) — 50 data terakhir
+          final logsResponse = await _dio.get(
+            ApiConfig.deviceLogsHistoryUrl(_activeDeviceId!),
           );
 
-          // 3. Tembak API Alerts (Untuk tab Aktivitas)
-          final alertsResponse = await http.get(
-            Uri.parse(ApiConfig.deviceAlertsUrl(_activeDeviceId!)),
-            headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+          // 3. Fetch Alerts (tab Aktivitas)
+          final alertsResponse = await _dio.get(
+            ApiConfig.deviceAlertsUrl(_activeDeviceId!),
           );
 
-          if (mounted) {
-            setState(() {
-              if (logsResponse.statusCode == 200) {
-                _sensorLogs = jsonDecode(logsResponse.body);
-              }
-              if (alertsResponse.statusCode == 200) {
-                _alertsLog = jsonDecode(alertsResponse.body);
-              }
-              _isLoading = false;
-            });
-          }
+          if (!mounted) return;
+          setState(() {
+            if (logsResponse.statusCode == 200) {
+              // Paginated: extract the 'data' array
+              final logsData = logsResponse.data;
+              _sensorLogs = logsData is Map
+                  ? (logsData['data'] as List? ?? [])
+                  : (logsData is List ? logsData : []);
+            }
+            if (alertsResponse.statusCode == 200) {
+              // Paginated: extract the 'data' array
+              final alertsData = alertsResponse.data;
+              _alertsLog = alertsData is Map
+                  ? (alertsData['data'] as List? ?? [])
+                  : (alertsData is List ? alertsData : []);
+            }
+            _isLoading = false;
+          });
         } else {
           if (mounted) setState(() => _isLoading = false);
         }
       }
     } catch (e) {
-      debugPrint("Error fetching history: $e");
+      developer.log('✗ Error fetching history: $e', name: 'HistoryPage');
       if (mounted) setState(() => _isLoading = false);
     }
   }

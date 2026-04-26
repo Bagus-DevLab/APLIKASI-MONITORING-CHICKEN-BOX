@@ -40,7 +40,7 @@
 │  ┌────────────────────────────────────────────────────────────────────┐     │
 │  │                          DioClient (Singleton)                      │     │
 │  │                                                                     │     │
-│  │  Base URL: https://api.pcb.my.id/api                              │     │
+│  │  Base URL: https://pcb.my.id/api                                    │     │
 │  │  Timeout: 30s                                                      │     │
 │  │  Headers: Content-Type: application/json                          │     │
 │  └────────────────────────────────┬───────────────────────────────────┘     │
