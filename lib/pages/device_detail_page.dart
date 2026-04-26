@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 import '../services/device_service.dart';
+import '../core/network/token_manager.dart';
 import '../models/device/device.dart';
 import '../models/device/sensor_log.dart';
 import '../models/device/device_component.dart';
@@ -45,6 +46,9 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
   String _ammonia = '--';
   bool _isSensorLoading = true;
 
+  // Current user ID for ownership check (controls "Kelola Akses" visibility)
+  String? _currentUserId;
+
   // Control items state
   late List<_ControlItemState> _controlItems;
 
@@ -53,6 +57,15 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
     super.initState();
     _initializeControlItems();
     _initializeDashboard();
+    _loadCurrentUserId();
+  }
+
+  /// Load current user's UUID from TokenManager for ownership comparison
+  Future<void> _loadCurrentUserId() async {
+    final userId = await TokenManager().getUserId();
+    if (mounted) {
+      setState(() => _currentUserId = userId);
+    }
   }
 
   @override
@@ -331,20 +344,25 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.people_outline, color: Colors.white),
-            tooltip: 'Kelola Akses',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DeviceAssignmentPage(
-                    device: widget.device,
+          // Only show "Kelola Akses" if the current user is the device owner.
+          // Operators/viewers should not see this button — the backend also
+          // enforces this with a 403, but hiding the button prevents confusion.
+          if (_currentUserId != null &&
+              _currentUserId == widget.device.userId)
+            IconButton(
+              icon: const Icon(Icons.people_outline, color: Colors.white),
+              tooltip: 'Kelola Akses',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DeviceAssignmentPage(
+                      device: widget.device,
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
       body: SingleChildScrollView(

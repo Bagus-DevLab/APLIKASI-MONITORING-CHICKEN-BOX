@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:dio/dio.dart';
 import '../constants/api_config.dart';
 import '../core/network/dio_client.dart';
+import '../core/network/token_manager.dart';
 import '../services/auth_service.dart';
 
 import '../constants/floating_navbar.dart';
@@ -78,6 +79,23 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = response.data;
         String fetchedName = data['full_name'] ?? data['name'] ?? data['email'].toString().split('@')[0] ?? 'Peternak';
         String fetchedPic = data['picture'] ?? '';
+
+        // Backfill user UUID into TokenManager.
+        // The login response's user_info doesn't include 'id', but
+        // GET /api/users/me does. This ensures TokenManager has the
+        // UUID for ownership checks (e.g., "Kelola Akses" button).
+        final String? userId = data['id'] as String?;
+        if (userId != null && userId.isNotEmpty) {
+          final tokenManager = TokenManager();
+          final existingId = await tokenManager.getUserId();
+          if (existingId == null || existingId.isEmpty) {
+            await tokenManager.saveUserInfo(
+              id: userId,
+              email: data['email'] as String? ?? '',
+              role: data['role'] as String? ?? '',
+            );
+          }
+        }
 
         if (mounted) {
           setState(() {

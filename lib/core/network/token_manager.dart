@@ -29,6 +29,7 @@ class TokenManager {
   );
 
   static const String _tokenKey = 'jwt_token';
+  static const String _userIdKey = 'user_id';
   static const String _userEmailKey = 'user_email';
   static const String _userRoleKey = 'user_role';
 
@@ -167,15 +168,17 @@ class TokenManager {
   // USER INFO OPERATIONS
   // ═══════════════════════════════════════════════════════════════
 
-  /// Save user info (email and role) to secure storage
+  /// Save user info (id, email, and role) to secure storage
   Future<void> saveUserInfo({
+    required String id,
     required String email,
     required String role,
   }) async {
     try {
+      await _storage.write(key: _userIdKey, value: id);
       await _storage.write(key: _userEmailKey, value: email);
       await _storage.write(key: _userRoleKey, value: role);
-      developer.log('✓ User info saved: $email ($role)', name: 'TokenManager');
+      developer.log('✓ User info saved: $email ($role) id=$id', name: 'TokenManager');
     } on PlatformException catch (e) {
       if (_isKeystoreCorruption(e)) {
         developer.log(
@@ -227,6 +230,35 @@ class TokenManager {
     }
   }
 
+  /// Get user UUID from secure storage
+  Future<String?> getUserId() async {
+    try {
+      return await _storage.read(key: _userIdKey);
+    } on PlatformException catch (e) {
+      if (_isKeystoreCorruption(e)) {
+        developer.log(
+          '⚠ Keystore corruption on getUserId — clearing storage',
+          name: 'TokenManager',
+        );
+        await detectAndClearCorruption();
+        return null;
+      }
+      developer.log(
+        '✗ Failed to read user id: $e',
+        name: 'TokenManager',
+        error: e,
+      );
+      return null;
+    } catch (e) {
+      developer.log(
+        '✗ Failed to read user id: $e',
+        name: 'TokenManager',
+        error: e,
+      );
+      return null;
+    }
+  }
+
   /// Get user role from secure storage
   Future<String?> getUserRole() async {
     try {
@@ -265,6 +297,7 @@ class TokenManager {
   Future<void> clearAuth() async {
     try {
       await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _userIdKey);
       await _storage.delete(key: _userEmailKey);
       await _storage.delete(key: _userRoleKey);
       developer.log('✓ All auth data cleared', name: 'TokenManager');

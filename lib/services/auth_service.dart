@@ -102,6 +102,7 @@ class AuthService {
       // Store token and user info in secure storage
       await _tokenManager.saveToken(loginResponse.accessToken);
       await _tokenManager.saveUserInfo(
+        id: loginResponse.userInfo.id ?? '',
         email: loginResponse.userInfo.email,
         role: loginResponse.userInfo.role,
       );
@@ -163,6 +164,7 @@ class AuthService {
   /// 
   /// Returns null if user is not authenticated
   Future<UserInfo?> getCurrentUser() async {
+    final id = await _tokenManager.getUserId();
     final email = await _tokenManager.getUserEmail();
     final role = await _tokenManager.getUserRole();
 
@@ -171,6 +173,7 @@ class AuthService {
     }
 
     return UserInfo(
+      id: id,
       email: email,
       fullName: email.split('@').first, // Fallback name
       role: role,
