@@ -10,6 +10,7 @@ import 'core/network/token_manager.dart';
 
 import 'pages/login_page.dart';
 import 'pages/home_screen.dart';
+import 'widgets/offline_banner.dart';
 
 /// Global navigator key — allows navigation from anywhere (interceptors,
 /// services, streams) without needing a BuildContext.
@@ -86,8 +87,8 @@ class _MyAppState extends State<MyApp> {
   ///
   /// This is the SINGLE source of truth for all logout navigation:
   /// - 401 Unauthorized (token expired) → AuthInterceptor calls triggerLogout()
-  /// - 403 Forbidden (account deactivated) → AuthInterceptor calls triggerLogout()
   /// - Manual logout from ProfilePage → calls triggerLogout()
+  /// - Account deletion from ProfilePage → calls triggerLogout()
   ///
   /// All paths converge here, guaranteeing the user is always redirected
   /// to LoginPage regardless of which screen they are on.
@@ -129,7 +130,9 @@ class _MyAppState extends State<MyApp> {
       themeMode: ThemeMode.light,
       
       // KUNCI PERBAIKAN TOMBOL BACK: Pakai properti 'home', BUKAN 'initialRoute'
-      home: widget.startPage,
+      // OfflineBanner wraps the start page to show a persistent red banner
+      // at the top of the screen when the device has no internet.
+      home: OfflineBanner(child: widget.startPage),
 
       onGenerateRoute: AppRoutes.generateRoute,
       debugShowCheckedModeBanner: false,

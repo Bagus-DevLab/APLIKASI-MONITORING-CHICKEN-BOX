@@ -7,7 +7,7 @@ import 'token_manager.dart';
 /// 1. Automatic JWT Bearer token injection
 /// 2. Global error handling based on API contract
 /// 3. Request ID logging
-/// 4. Automatic logout on 401/403 errors
+/// 4. Automatic logout on 401 errors (403 stays logged in)
 /// 
 /// Based on API_CONTRACT.md Section 2: HTTP Error Dictionary
 class AuthInterceptor extends Interceptor {
@@ -90,10 +90,12 @@ class AuthInterceptor extends Interceptor {
       // Server responded with an error
       exception = _handleHttpError(err.response!, requestId);
 
-      // Trigger logout for 401/403 errors
-      if (statusCode == 401 || statusCode == 403) {
+      // Trigger logout ONLY for 401 (token expired/invalid).
+      // 403 means "authenticated but forbidden" — user stays logged in
+      // and sees a friendly "Akses Ditolak" snackbar instead.
+      if (statusCode == 401) {
         developer.log(
-          '⚠ Auth error detected. Clearing token and triggering logout.',
+          '⚠ Token expired/invalid (401). Clearing auth and triggering logout.',
           name: 'AuthInterceptor',
         );
         await _tokenManager.clearAuth();

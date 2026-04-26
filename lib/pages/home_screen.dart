@@ -75,37 +75,33 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final response = await _dio.get(ApiConfig.usersUrl);
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        String fetchedName = data['full_name'] ?? data['name'] ?? data['email'].toString().split('@')[0] ?? 'Peternak';
-        String fetchedPic = data['picture'] ?? '';
+      final data = response.data;
+      String fetchedName = data['full_name'] ?? data['name'] ?? data['email'].toString().split('@')[0] ?? 'Peternak';
+      String fetchedPic = data['picture'] ?? '';
 
-        // Backfill user UUID into TokenManager.
-        // The login response's user_info doesn't include 'id', but
-        // GET /api/users/me does. This ensures TokenManager has the
-        // UUID for ownership checks (e.g., "Kelola Akses" button).
-        final String? userId = data['id'] as String?;
-        if (userId != null && userId.isNotEmpty) {
-          final tokenManager = TokenManager();
-          final existingId = await tokenManager.getUserId();
-          if (existingId == null || existingId.isEmpty) {
-            await tokenManager.saveUserInfo(
-              id: userId,
-              email: data['email'] as String? ?? '',
-              role: data['role'] as String? ?? '',
-            );
-          }
+      // Backfill user UUID into TokenManager.
+      final String? userId = data['id'] as String?;
+      if (userId != null && userId.isNotEmpty) {
+        final tokenManager = TokenManager();
+        final existingId = await tokenManager.getUserId();
+        if (existingId == null || existingId.isEmpty) {
+          await tokenManager.saveUserInfo(
+            id: userId,
+            email: data['email'] as String? ?? '',
+            role: data['role'] as String? ?? '',
+          );
         }
-
-        if (mounted) {
-          setState(() {
-            _userName = fetchedName;
-            _pictureUrl = fetchedPic;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _userName = 'Peternak');
       }
+
+      if (mounted) {
+        setState(() {
+          _userName = fetchedName;
+          _pictureUrl = fetchedPic;
+        });
+      }
+    } on DioException catch (_) {
+      // 401 triggers global logout via interceptor; other errors are non-fatal here
+      if (mounted) setState(() => _userName = 'Peternak');
     } catch (e) {
       developer.log('✗ Error loading profile: $e', name: 'HomeScreen');
       if (mounted) setState(() => _userName = 'Peternak');
@@ -117,28 +113,34 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final response = await _dio.get(ApiConfig.devicesUrl);
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        // Backend returns paginated response: { data: [...], total: N, ... }
-        final List devices = data is Map ? (data['data'] as List? ?? []) : (data is List ? data : []);
-        if (devices.isNotEmpty) {
-          _activeDeviceId = devices[0]['id'].toString();
+      final data = response.data;
+      // Backend returns paginated response: { data: [...], total: N, ... }
+      final List devices = data is Map ? (data['data'] as List? ?? []) : (data is List ? data : []);
+      if (devices.isNotEmpty) {
+        _activeDeviceId = devices[0]['id'].toString();
 
-          await _checkOnlineStatus();
-          await _fetchNotifications();
+        await _checkOnlineStatus();
+        await _fetchNotifications();
 
-          _statusTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-            _checkOnlineStatus();
-            _fetchNotifications();
+        _statusTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+          _checkOnlineStatus();
+          _fetchNotifications();
+        });
+      } else {
+        if (mounted) {
+          setState(() {
+            _isCheckingStatus = false;
+            _isDeviceOnline = false;
           });
-        } else {
-          if (mounted) {
-            setState(() {
-              _isCheckingStatus = false;
-              _isDeviceOnline = false;
-            });
-          }
         }
+      }
+    } on DioException catch (_) {
+      // 401 triggers global logout via interceptor; other errors are non-fatal
+      if (mounted) {
+        setState(() {
+          _isCheckingStatus = false;
+          _isDeviceOnline = false;
+        });
       }
     } catch (e) {
       developer.log('✗ Error initializing device status: $e', name: 'HomeScreen');
@@ -155,14 +157,19 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_activeDeviceId == null) return;
     try {
       final response = await _dio.get(ApiConfig.deviceStatusUrl(_activeDeviceId!));
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (mounted) {
-          setState(() {
-            _isDeviceOnline = data['is_online'] ?? false;
-            _isCheckingStatus = false;
-          });
-        }
+      final data = response.data;
+      if (mounted) {
+        setState(() {
+          _isDeviceOnline = data['is_online'] ?? false;
+          _isCheckingStatus = false;
+        });
+      }
+    } on DioException catch (_) {
+      if (mounted) {
+        setState(() {
+          _isDeviceOnline = false;
+          _isCheckingStatus = false;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -180,17 +187,17 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final response = await _dio.get(ApiConfig.deviceAlertsUrl(_activeDeviceId!));
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        // Backend returns paginated response: { data: [...], total: N, ... }
-        final List alerts = data is Map ? (data['data'] as List? ?? []) : (data is List ? data : []);
-        if (mounted) {
-          setState(() {
-            _notifications = alerts;
-            _notificationCount = alerts.length;
-          });
-        }
+      final data = response.data;
+      // Backend returns paginated response: { data: [...], total: N, ... }
+      final List alerts = data is Map ? (data['data'] as List? ?? []) : (data is List ? data : []);
+      if (mounted) {
+        setState(() {
+          _notifications = alerts;
+          _notificationCount = alerts.length;
+        });
       }
+    } on DioException catch (_) {
+      // Non-fatal — silently fail for background polling
     } catch (e) {
       developer.log('✗ Error fetching notifications: $e', name: 'HomeScreen');
     }

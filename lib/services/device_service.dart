@@ -108,17 +108,9 @@ class DeviceService {
         },
       );
 
-      // Check if response is successful
-      if (response.statusCode != 200) {
-        developer.log(
-          '✗ Failed to load devices: status ${response.statusCode}',
-          name: 'DeviceService',
-        );
-        throw UnknownException(
-          'Gagal memuat daftar device dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
+      // Non-2xx responses are now routed to onError by DioClient's
+      // validateStatus, so AuthInterceptor maps them to typed ApiExceptions.
+      // If we reach here, the response is guaranteed to be 2xx.
 
       // Parse paginated response
       final paginatedDevices = PaginatedResponse<Device>.fromJson(
@@ -220,18 +212,6 @@ class DeviceService {
         },
       );
 
-      // Check if response is successful
-      if (response.statusCode != 200) {
-        developer.log(
-          '✗ Failed to control device: status ${response.statusCode}',
-          name: 'DeviceService',
-        );
-        throw UnknownException(
-          'Gagal mengirim perintah ke device dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
-
       // Log success message from backend
       final message = response.data['message'] as String?;
       developer.log(
@@ -332,18 +312,6 @@ class DeviceService {
           'name': trimmedName,
         },
       );
-
-      // Check if response is successful
-      if (response.statusCode != 200) {
-        developer.log(
-          '✗ Failed to claim device: status ${response.statusCode}',
-          name: 'DeviceService',
-        );
-        throw UnknownException(
-          'Gagal mengklaim device dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
 
       // Parse device response
       final device = Device.fromJson(response.data);
@@ -447,18 +415,6 @@ class DeviceService {
         },
       );
 
-      // Check if response is successful
-      if (response.statusCode != 200) {
-        developer.log(
-          '✗ Failed to load logs: status ${response.statusCode}',
-          name: 'DeviceService',
-        );
-        throw UnknownException(
-          'Gagal memuat log sensor dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
-
       // Parse paginated response
       final paginatedLogs = PaginatedResponse<SensorLog>.fromJson(
         response.data,
@@ -547,13 +503,6 @@ class DeviceService {
             'limit': pageLimit,
           },
         );
-
-        if (response.statusCode != 200) {
-          throw UnknownException(
-            'Gagal mencari user dengan status ${response.statusCode}',
-            statusCode: response.statusCode,
-          );
-        }
 
         final paginated = PaginatedResponse<UserInfo>.fromJson(
           response.data,
@@ -652,13 +601,6 @@ class DeviceService {
         },
       );
 
-      if (response.statusCode != 200) {
-        throw UnknownException(
-          'Gagal assign user dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
-
       final assignment = DeviceAssignment.fromJson(response.data);
 
       developer.log(
@@ -721,13 +663,6 @@ class DeviceService {
       final response = await _dio.get(
         ApiConfig.deviceAssignmentsUrl(deviceId),
       );
-
-      if (response.statusCode != 200) {
-        throw UnknownException(
-          'Gagal memuat daftar assignment dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
 
       // Response is a plain JSON array, NOT paginated
       final List<dynamic> data = response.data as List<dynamic>;
@@ -795,13 +730,6 @@ class DeviceService {
       final response = await _dio.delete(
         ApiConfig.deviceUnassignUrl(deviceId, userId),
       );
-
-      if (response.statusCode != 200) {
-        throw UnknownException(
-          'Gagal menghapus assignment dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
 
       developer.log(
         '✓ User unassigned successfully',

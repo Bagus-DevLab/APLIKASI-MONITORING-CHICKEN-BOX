@@ -2,34 +2,197 @@ import 'package:flutter/material.dart';
 import '../core/network/api_exception.dart';
 import '../constants/app_colors.dart';
 
-/// Centralized error handling utilities for consistent UI feedback
-/// 
-/// Provides standardized methods for displaying errors, success messages,
-/// and handling different types of ApiException with appropriate UI feedback.
-/// 
-/// Usage:
-/// ```dart
-/// try {
-///   await deviceService.controlDevice(...);
-///   ErrorHandler.showSuccessSnackbar(context, 'Kipas berhasil dinyalakan');
-/// } on ApiException catch (e) {
-///   ErrorHandler.handleApiException(context, e, onRetry: _loadDevices);
-/// }
-/// ```
+/// Centralized error handling with humanized Indonesian messages.
+///
+/// Design philosophy: "Ngobrol Santai, Bukan Formal"
+/// — Casual Indonesian that feels like a personal assistant, not a robot.
+///
+/// UI decision matrix:
+/// - Dialog (blocking): 401, 500, 503, Unknown — critical, must acknowledge
+/// - SnackBar (temporary): 403, 404, 400, 429, Timeout — informational
+/// - SnackBar + Retry: Network errors — actionable
 class ErrorHandler {
-  /// Show error dialog with title and message
+  // ═══════════════════════════════════════════════════════════════
+  // HUMANIZED MESSAGE MAPPER
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Map a typed [ApiException] to a casual Indonesian title + message.
+  ///
+  /// Returns a record of (title, body) for use in dialogs/snackbars.
+  static ({String title, String body}) getHumanizedMessage(
+    ApiException exception,
+  ) {
+    // Use the backend's detail message when it's specific enough;
+    // fall back to our friendly defaults otherwise.
+    final backendMsg = exception.message;
+
+    if (exception is UnauthorizedException) {
+      return (
+        title: 'Sesi Kamu Udah Habis, Bro!',
+        body: 'Token login kamu udah expired nih. '
+            'Yuk login lagi biar bisa lanjut ngecek kandang!',
+      );
+    }
+
+    if (exception is ForbiddenException) {
+      return (
+        title: 'Waduh, Akses Ditolak!',
+        body: backendMsg.isNotEmpty
+            ? backendMsg
+            : 'Kamu belum punya izin buat akses fitur ini. '
+                'Coba hubungi admin kandang ya!',
+      );
+    }
+
+    if (exception is NotFoundException) {
+      return (
+        title: 'Eh, Nggak Ketemu Nih!',
+        body: backendMsg.isNotEmpty
+            ? backendMsg
+            : 'Data yang kamu cari kayaknya udah dihapus atau nggak ada. '
+                'Coba refresh deh!',
+      );
+    }
+
+    if (exception is BadRequestException) {
+      return (
+        title: 'Hmm, Ada yang Salah...',
+        body: backendMsg.isNotEmpty
+            ? backendMsg
+            : 'Permintaan kamu nggak bisa diproses. '
+                'Coba cek lagi input-nya ya!',
+      );
+    }
+
+    if (exception is ValidationException) {
+      return (
+        title: 'Isi Form-nya Belum Lengkap!',
+        body: (exception as ValidationException).allMessages,
+      );
+    }
+
+    if (exception is RateLimitException) {
+      return (
+        title: 'Wah, Kebanyakan Request Nih!',
+        body: 'Santai dulu ya Bro, tunggu 1 menit baru coba lagi. '
+            'Server lagi capek.',
+      );
+    }
+
+    if (exception is ServerException) {
+      return (
+        title: 'Aduh, Server Lagi Error!',
+        body: 'Ada masalah di server kami nih. '
+            'Tim teknis udah dikabarin, coba lagi nanti ya!',
+      );
+    }
+
+    if (exception is ServiceUnavailableException) {
+      return (
+        title: 'Server Lagi Maintenance, Bro!',
+        body: 'Kami lagi upgrade sistem biar makin kenceng. '
+            'Balik lagi nanti ya, paling 10-15 menit!',
+      );
+    }
+
+    if (exception is NetworkException) {
+      final msg = exception.message.toLowerCase();
+      if (msg.contains('timeout')) {
+        return (
+          title: 'Sinyal Lagi Lelet Nih!',
+          body: 'Koneksi internet kamu lagi lambat. '
+              'Coba cek WiFi atau data seluler ya!',
+        );
+      }
+      return (
+        title: 'Waduh, Nggak Ada Internet!',
+        body: 'Cek koneksi internet kamu dulu ya. '
+            'Kandang Pintar butuh online buat kerja.',
+      );
+    }
+
+    // UnknownException / catch-all
+    return (
+      title: 'Hmm, Ada Error Aneh...',
+      body: backendMsg.isNotEmpty
+          ? backendMsg
+          : 'Terjadi kesalahan yang nggak terduga. '
+              'Coba restart app atau hubungi support ya!',
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MAIN ENTRY POINT
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Handle [ApiException] and show the appropriate UI feedback.
+  ///
+  /// Decision matrix:
+  /// - 401: Dialog (global logout already triggered by interceptor)
+  /// - 403: SnackBar (5 s) — user stays logged in
+  /// - 404: SnackBar (3 s)
+  /// - 400: SnackBar (4 s)
+  /// - 422: Dialog with field-level errors
+  /// - 429: Orange SnackBar (6 s)
+  /// - 500: Dialog with retry
+  /// - 503: Dialog (blocking)
+  /// - Network: SnackBar with retry button
+  /// - Unknown: Dialog
+  static void handleApiException(
+    BuildContext context,
+    ApiException exception, {
+    VoidCallback? onRetry,
+  }) {
+    final msg = getHumanizedMessage(exception);
+
+    if (exception is ValidationException) {
+      showValidationErrorDialog(context, exception);
+    } else if (exception is ForbiddenException) {
+      // 403 — SnackBar, NOT logout
+      showErrorSnackbar(context, '${msg.title} ${msg.body}');
+    } else if (exception is NotFoundException) {
+      showErrorSnackbar(context, '${msg.title} ${msg.body}');
+    } else if (exception is BadRequestException) {
+      showErrorSnackbar(context, '${msg.title} ${msg.body}');
+    } else if (exception is RateLimitException) {
+      showRateLimitSnackbar(context, msg.body);
+    } else if (exception is NetworkException) {
+      if (onRetry != null) {
+        showNetworkErrorSnackbar(context, msg.body, onRetry);
+      } else {
+        showErrorSnackbar(context, '${msg.title} ${msg.body}');
+      }
+    } else if (exception is ServerException) {
+      showErrorDialog(context, msg.title, msg.body, onRetry: onRetry);
+    } else if (exception is ServiceUnavailableException) {
+      showErrorDialog(context, msg.title, msg.body);
+    } else if (exception is UnauthorizedException) {
+      // 401 — global logout already triggered by AuthInterceptor;
+      // show a brief dialog so the user knows why they were kicked out.
+      showErrorDialog(context, msg.title, msg.body);
+    } else {
+      showErrorDialog(context, msg.title, msg.body);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DIALOGS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Show error dialog with title, message, and optional retry button.
   static void showErrorDialog(
     BuildContext context,
     String title,
-    String message,
-  ) {
+    String message, {
+    VoidCallback? onRetry,
+  }) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.error_outline, color: AppColors.error, size: 28),
+            const Icon(Icons.error_outline, color: AppColors.error, size: 28),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -48,21 +211,36 @@ class ErrorHandler {
           style: const TextStyle(fontSize: 14, height: 1.5),
         ),
         actions: [
+          if (onRetry != null)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                onRetry();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryGreen,
+              ),
+              child: const Text(
+                'Coba Lagi',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.primaryGreen,
             ),
-            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'OK',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// Show validation error dialog with field-level errors
-  /// 
-  /// Displays a list of validation errors from a 422 response
+  /// Show validation error dialog with field-level errors.
   static void showValidationErrorDialog(
     BuildContext context,
     ValidationException exception,
@@ -77,7 +255,7 @@ class ErrorHandler {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Validasi Gagal',
+                'Isi Form-nya Belum Lengkap!',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -92,30 +270,32 @@ class ErrorHandler {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Terjadi kesalahan validasi:',
+              'Coba cek lagi ya:',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            ...exception.errors.map((error) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.arrow_right,
-                    size: 20,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${error.field}: ${error.msg}',
-                      style: const TextStyle(fontSize: 13, height: 1.4),
+            ...exception.errors.map(
+              (error) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.arrow_right,
+                      size: 20,
+                      color: AppColors.error,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${error.field}: ${error.msg}',
+                        style: const TextStyle(fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
         ),
         actions: [
@@ -124,18 +304,22 @@ class ErrorHandler {
             style: TextButton.styleFrom(
               foregroundColor: AppColors.primaryGreen,
             ),
-            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'OK, Paham!',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// Show success snackbar with green background
-  static void showSuccessSnackbar(
-    BuildContext context,
-    String message,
-  ) {
+  // ═══════════════════════════════════════════════════════════════
+  // SNACKBARS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Show success snackbar with green background.
+  static void showSuccessSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -158,11 +342,8 @@ class ErrorHandler {
     );
   }
 
-  /// Show error snackbar with red background
-  static void showErrorSnackbar(
-    BuildContext context,
-    String message,
-  ) {
+  /// Show error snackbar with red background.
+  static void showErrorSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -179,17 +360,14 @@ class ErrorHandler {
         ),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 
-  /// Show rate limit snackbar with orange background and longer duration
-  static void showRateLimitSnackbar(
-    BuildContext context,
-    String message,
-  ) {
+  /// Show rate limit snackbar with orange background and longer duration.
+  static void showRateLimitSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -206,13 +384,13 @@ class ErrorHandler {
         ),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 6),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 
-  /// Show network error snackbar with retry action
+  /// Show network error snackbar with retry action.
   static void showNetworkErrorSnackbar(
     BuildContext context,
     String message,
@@ -245,63 +423,11 @@ class ErrorHandler {
     );
   }
 
-  /// Handle ApiException and show appropriate UI feedback
-  /// 
-  /// This is the main entry point for error handling.
-  /// It automatically determines the error type and shows the appropriate UI.
-  /// 
-  /// Parameters:
-  /// - [context]: BuildContext for showing dialogs/snackbars
-  /// - [exception]: The ApiException to handle
-  /// - [onRetry]: Optional callback for retry action (used with NetworkException)
-  static void handleApiException(
-    BuildContext context,
-    ApiException exception, {
-    VoidCallback? onRetry,
-  }) {
-    if (exception is ValidationException) {
-      // 422 - Show field-level validation errors
-      showValidationErrorDialog(context, exception);
-    } else if (exception is ForbiddenException) {
-      // 403 - Permission denied
-      showErrorDialog(context, 'Akses Ditolak', exception.message);
-    } else if (exception is NotFoundException) {
-      // 404 - Resource not found
-      showErrorDialog(context, 'Tidak Ditemukan', exception.message);
-    } else if (exception is BadRequestException) {
-      // 400 - Bad request
-      showErrorDialog(context, 'Permintaan Tidak Valid', exception.message);
-    } else if (exception is RateLimitException) {
-      // 429 - Rate limit exceeded
-      showRateLimitSnackbar(context, exception.message);
-    } else if (exception is NetworkException) {
-      // Network error - show with retry option
-      if (onRetry != null) {
-        showNetworkErrorSnackbar(context, exception.message, onRetry);
-      } else {
-        showErrorSnackbar(context, exception.message);
-      }
-    } else if (exception is ServerException) {
-      // 500 - Server error
-      showErrorDialog(
-        context,
-        'Kesalahan Server',
-        '${exception.message}\n\nSilakan coba lagi nanti.',
-      );
-    } else if (exception is ServiceUnavailableException) {
-      // 503 - Service unavailable
-      showErrorDialog(
-        context,
-        'Server Maintenance',
-        '${exception.message}\n\nLayanan sedang dalam pemeliharaan.',
-      );
-    } else {
-      // Unknown error
-      showErrorDialog(context, 'Kesalahan', exception.message);
-    }
-  }
+  // ═══════════════════════════════════════════════════════════════
+  // LOADING DIALOG
+  // ═══════════════════════════════════════════════════════════════
 
-  /// Show loading dialog (for blocking operations)
+  /// Show loading dialog (for blocking operations).
   static void showLoadingDialog(BuildContext context, {String? message}) {
     showDialog(
       context: context,
@@ -337,7 +463,7 @@ class ErrorHandler {
     );
   }
 
-  /// Hide loading dialog
+  /// Hide loading dialog.
   static void hideLoadingDialog(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
   }

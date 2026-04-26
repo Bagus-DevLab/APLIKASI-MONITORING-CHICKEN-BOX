@@ -48,16 +48,14 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final response = await _dio.get(ApiConfig.usersUrl);
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (mounted) {
-          setState(() {
-            _fullName = data['full_name'] ?? data['name'] ?? 'Peternak';
-            _email = data['email'] ?? 'Email tidak tersedia';
-            _pictureUrl = data['picture'] ?? '';
-            _isLoadingProfile = false;
-          });
-        }
+      final data = response.data;
+      if (mounted) {
+        setState(() {
+          _fullName = data['full_name'] ?? data['name'] ?? 'Peternak';
+          _email = data['email'] ?? 'Email tidak tersedia';
+          _pictureUrl = data['picture'] ?? '';
+          _isLoadingProfile = false;
+        });
       }
     } on DioException catch (e) {
       developer.log('✗ Error loading profile: ${e.error}', name: 'ProfilePage');
@@ -76,17 +74,13 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final response = await _dio.get(ApiConfig.devicesUrl);
 
-      if (response.statusCode == 200) {
-        // Backend returns paginated response: { data: [...], total: N, ... }
-        final data = response.data;
-        if (mounted) {
-          setState(() {
-            _myDevices = data is Map ? (data['data'] as List? ?? []) : (data as List? ?? []);
-            _isLoadingDevices = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoadingDevices = false);
+      // Backend returns paginated response: { data: [...], total: N, ... }
+      final data = response.data;
+      if (mounted) {
+        setState(() {
+          _myDevices = data is Map ? (data['data'] as List? ?? []) : (data as List? ?? []);
+          _isLoadingDevices = false;
+        });
       }
     } on DioException catch (e) {
       developer.log('✗ Error fetching devices: ${e.error}', name: 'ProfilePage');
@@ -102,25 +96,23 @@ class _ProfilePageState extends State<ProfilePage> {
     _showLoadingDialog();
 
     try {
-      final response = await _dio.post(ApiConfig.deviceUnclaimUrl(deviceId));
+      await _dio.post(ApiConfig.deviceUnclaimUrl(deviceId));
 
-      if (mounted) Navigator.pop(context);
-
-      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
-        _showSnackBar('Kandang berhasil dilepas.', isError: false);
-        _fetchMyDevices();
-      } else {
-        _showSnackBar('Gagal melepas kandang.');
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showSnackBar('Kandang berhasil dilepas.', isError: false);
+      _fetchMyDevices();
     } on DioException catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
       if (e.error is ApiException) {
         ErrorHandler.handleApiException(context, e.error as ApiException);
       } else {
         _showSnackBar('Kesalahan jaringan: ${e.message}');
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
       _showSnackBar('Kesalahan jaringan: $e');
     }
   }
@@ -149,26 +141,24 @@ class _ProfilePageState extends State<ProfilePage> {
     _showLoadingDialog();
 
     try {
-      final response = await _dio.delete(ApiConfig.usersUrl);
+      await _dio.delete(ApiConfig.usersUrl);
 
       if (!mounted) return;
       Navigator.pop(context);
 
-      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
-        try { await _auth.currentUser?.delete(); } catch (_) {}
-        await _clearLocalDataAndLogout();
-      } else {
-        _showSnackBar('Gagal menghapus akun. Server menolak. (Kode: ${response.statusCode})');
-      }
+      try { await _auth.currentUser?.delete(); } catch (_) {}
+      await _clearLocalDataAndLogout();
     } on DioException catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
       if (e.error is ApiException) {
         ErrorHandler.handleApiException(context, e.error as ApiException);
       } else {
         _showSnackBar('Terjadi kesalahan jaringan: ${e.message}');
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
       _showSnackBar('Terjadi kesalahan jaringan: $e');
     }
   }

@@ -84,19 +84,7 @@ class AuthService {
         data: request.toJson(),
       );
 
-      // Check if response is successful
-      if (response.statusCode != 200) {
-        developer.log(
-          '✗ Login failed with status ${response.statusCode}',
-          name: 'AuthService',
-        );
-        throw UnknownException(
-          'Login gagal dengan status ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
-
-      // Parse response
+      // Parse response (non-2xx are routed to onError by DioClient)
       final loginResponse = LoginResponse.fromJson(response.data);
 
       // Store token and user info in secure storage

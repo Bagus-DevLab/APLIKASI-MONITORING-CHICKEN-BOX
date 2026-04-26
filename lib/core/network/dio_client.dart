@@ -34,8 +34,9 @@ class DioClient {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        // Validate status codes (don't throw on 4xx/5xx, let interceptor handle it)
-        validateStatus: (status) => true,
+        // Only treat 2xx as success — 4xx/5xx are routed to onError
+        // so AuthInterceptor can map them to typed ApiExceptions.
+        validateStatus: (status) => status != null && status >= 200 && status < 300,
       ),
     );
 

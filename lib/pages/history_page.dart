@@ -38,50 +38,50 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       // 1. Dapatkan Device ID dulu
       // AuthInterceptor handles the token automatically.
+      // Non-2xx responses throw DioException (handled by interceptor).
       final devResponse = await _dio.get(ApiConfig.devicesUrl);
 
-      if (devResponse.statusCode == 200) {
-        final devData = devResponse.data;
-        // Backend returns paginated response: { data: [...], total, page, ... }
-        final List devices = devData is Map
-            ? (devData['data'] as List? ?? [])
-            : (devData is List ? devData : []);
+      final devData = devResponse.data;
+      // Backend returns paginated response: { data: [...], total, page, ... }
+      final List devices = devData is Map
+          ? (devData['data'] as List? ?? [])
+          : (devData is List ? devData : []);
 
-        if (devices.isNotEmpty) {
-          _activeDeviceId = devices[0]['id'].toString();
+      if (devices.isNotEmpty) {
+        _activeDeviceId = devices[0]['id'].toString();
 
-          // 2. Fetch Logs (Suhu, Kelembapan, Amonia) — 50 data terakhir
-          final logsResponse = await _dio.get(
-            ApiConfig.deviceLogsHistoryUrl(_activeDeviceId!),
-          );
+        // 2. Fetch Logs (Suhu, Kelembapan, Amonia) — 50 data terakhir
+        final logsResponse = await _dio.get(
+          ApiConfig.deviceLogsHistoryUrl(_activeDeviceId!),
+        );
 
-          // 3. Fetch Alerts (tab Aktivitas)
-          final alertsResponse = await _dio.get(
-            ApiConfig.deviceAlertsUrl(_activeDeviceId!),
-          );
+        // 3. Fetch Alerts (tab Aktivitas)
+        final alertsResponse = await _dio.get(
+          ApiConfig.deviceAlertsUrl(_activeDeviceId!),
+        );
 
-          if (!mounted) return;
-          setState(() {
-            if (logsResponse.statusCode == 200) {
-              // Paginated: extract the 'data' array
-              final logsData = logsResponse.data;
-              _sensorLogs = logsData is Map
-                  ? (logsData['data'] as List? ?? [])
-                  : (logsData is List ? logsData : []);
-            }
-            if (alertsResponse.statusCode == 200) {
-              // Paginated: extract the 'data' array
-              final alertsData = alertsResponse.data;
-              _alertsLog = alertsData is Map
-                  ? (alertsData['data'] as List? ?? [])
-                  : (alertsData is List ? alertsData : []);
-            }
-            _isLoading = false;
-          });
-        } else {
-          if (mounted) setState(() => _isLoading = false);
-        }
+        if (!mounted) return;
+        setState(() {
+          // Paginated: extract the 'data' array
+          final logsData = logsResponse.data;
+          _sensorLogs = logsData is Map
+              ? (logsData['data'] as List? ?? [])
+              : (logsData is List ? logsData : []);
+
+          final alertsData = alertsResponse.data;
+          _alertsLog = alertsData is Map
+              ? (alertsData['data'] as List? ?? [])
+              : (alertsData is List ? alertsData : []);
+
+          _isLoading = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoading = false);
       }
+    } on DioException catch (e) {
+      // Typed ApiException from interceptor (401 triggers global logout)
+      developer.log('✗ API error fetching history: ${e.error}', name: 'HistoryPage');
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       developer.log('✗ Error fetching history: $e', name: 'HistoryPage');
       if (mounted) setState(() => _isLoading = false);

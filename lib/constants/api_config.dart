@@ -17,7 +17,7 @@ class ApiConfig {
     await dotenv.load(fileName: ".env");
     
     // Get base URL from .env and append /api prefix
-    final baseUrl = dotenv.env['BASE_URL'] ?? 'https://api.pcb.my.id';
+    final baseUrl = dotenv.env['BASE_URL'] ?? 'https://pcb.my.id';
     final apiBaseUrl = '$baseUrl/api';
     
     // Configure DioClient with the full API base URL
@@ -26,7 +26,7 @@ class ApiConfig {
 
   /// Get base URL with /api prefix
   static String get baseUrl {
-    final baseUrl = dotenv.env['BASE_URL'] ?? 'https://api.pcb.my.id';
+    final baseUrl = dotenv.env['BASE_URL'] ?? 'https://pcb.my.id';
     return '$baseUrl/api';
   }
 
