@@ -7,7 +7,7 @@ import '../constants/api_config.dart';
 
 import '../constants/floating_navbar.dart';
 import '../constants/app_colors.dart'; // Pastikan ini di-import buat warna Bottom Sheet
-import 'home_page.dart';
+import 'device_list_page.dart';
 import 'devices_page.dart';
 import 'scan_page.dart';
 import 'history_page.dart';
@@ -439,12 +439,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPageContent() {
     switch (_currentIndex) {
-      case 0: return const HomePage();
+      case 0: return const DeviceListPage();
       case 1: return const DevicesPage();
       case 2: return const ScanPage();
       case 3: return const HistoryPage();
       case 4: return const ProfilePage();
-      default: return const HomePage();
+      default: return const DeviceListPage();
     }
   }
 }

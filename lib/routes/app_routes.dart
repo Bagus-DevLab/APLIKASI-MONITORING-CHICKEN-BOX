@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../pages/login_page.dart';
 import '../pages/register_page.dart';
 import '../pages/home_screen.dart';
-// ignore: unused_import
-import '../pages/home_page.dart';
+import '../pages/device_list_page.dart';
+import '../pages/device_detail_page.dart';
 import '../pages/scan_page.dart';
 import '../pages/devices_page.dart';
 import '../pages/history_page.dart';
