@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'dart:developer' as developer;
 import 'constants/app_colors.dart';
 import 'routes/app_routes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'constants/api_config.dart';
 import 'core/network/token_manager.dart';
+import 'providers/device_provider.dart';
 
 import 'pages/login_page.dart';
 import 'pages/home_screen.dart';
@@ -122,20 +124,23 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Kandang Pintar',
-      navigatorKey: navigatorKey,
-      theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
-      themeMode: ThemeMode.light,
-      
-      // KUNCI PERBAIKAN TOMBOL BACK: Pakai properti 'home', BUKAN 'initialRoute'
-      // OfflineBanner wraps the start page to show a persistent red banner
-      // at the top of the screen when the device has no internet.
-      home: OfflineBanner(child: widget.startPage),
+    return ChangeNotifierProvider(
+      create: (_) => DeviceProvider(),
+      child: MaterialApp(
+        title: 'Kandang Pintar',
+        navigatorKey: navigatorKey,
+        theme: _buildLightTheme(),
+        darkTheme: _buildDarkTheme(),
+        themeMode: ThemeMode.light,
+        
+        // KUNCI PERBAIKAN TOMBOL BACK: Pakai properti 'home', BUKAN 'initialRoute'
+        // OfflineBanner wraps the start page to show a persistent red banner
+        // at the top of the screen when the device has no internet.
+        home: OfflineBanner(child: widget.startPage),
 
-      onGenerateRoute: AppRoutes.generateRoute,
-      debugShowCheckedModeBanner: false,
+        onGenerateRoute: AppRoutes.generateRoute,
+        debugShowCheckedModeBanner: false,
+      ),
     );
   }
 

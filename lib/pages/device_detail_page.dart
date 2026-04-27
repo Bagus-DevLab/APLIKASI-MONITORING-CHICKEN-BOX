@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 import '../services/device_service.dart';
 import '../core/network/token_manager.dart';
 import '../models/device/device.dart';
-import '../models/device/sensor_log.dart';
 import '../models/device/device_component.dart';
-import '../models/common/paginated_response.dart';
 import '../core/network/api_exception.dart';
-import '../utils/error_handler.dart';
+import '../providers/device_provider.dart';
 import '../constants/app_colors.dart';
 import 'device_assignment_page.dart';
 
@@ -49,15 +48,24 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
   // Current user ID for ownership check (controls "Kelola Akses" visibility)
   String? _currentUserId;
 
-  // Control items state
-  late List<_ControlItemState> _controlItems;
-
   @override
   void initState() {
     super.initState();
-    _initializeControlItems();
-    _initializeDashboard();
-    _loadCurrentUserId();
+
+    // Defer API calls and Provider access to the next frame so that
+    // TokenManager has finished initializing after navigation completes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      _initializeDashboard();
+      _loadCurrentUserId();
+
+      // Sync toggle states with the global DeviceProvider.
+      // This ensures the Provider has an entry for this device so
+      // Consumer<DeviceProvider> can read/write component states.
+      final provider = Provider.of<DeviceProvider>(context, listen: false);
+      provider.refreshDeviceStates(widget.device.id);
+    });
   }
 
   /// Load current user's UUID from TokenManager for ownership comparison
@@ -72,32 +80,6 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
-  }
-
-  /// Initialize control items with DeviceComponent enum
-  void _initializeControlItems() {
-    _controlItems = [
-      _ControlItemState(
-        component: DeviceComponent.kipas,
-        icon: Icons.air_rounded,
-        color: const Color(0xFF2196F3),
-      ),
-      _ControlItemState(
-        component: DeviceComponent.lampu,
-        icon: Icons.lightbulb_rounded,
-        color: const Color(0xFFFFC107),
-      ),
-      _ControlItemState(
-        component: DeviceComponent.pompa,
-        icon: Icons.water_drop_rounded,
-        color: const Color(0xFF2196F3),
-      ),
-      _ControlItemState(
-        component: DeviceComponent.pakanOtomatis,
-        icon: Icons.restaurant_rounded,
-        color: const Color(0xFF4CAF50),
-      ),
-    ];
   }
 
   /// Initialize dashboard - load sensor data and start auto-refresh
@@ -153,124 +135,6 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
         error: e,
       );
       // Don't show error for background refresh failures
-    }
-  }
-
-  /// Toggle device component (with per-switch loading state)
-  Future<void> _toggleControl(int index, bool newValue) async {
-    final item = _controlItems[index];
-    final originalValue = item.isEnabled;
-
-    developer.log(
-      '→ Toggling ${item.component.displayName} to ${newValue ? "ON" : "OFF"}',
-      name: 'DeviceDetailPage',
-    );
-
-    // Show loading state on THIS switch only
-    setState(() {
-      item.isLoading = true;
-      item.isEnabled = newValue; // Optimistic update
-    });
-
-    try {
-      await _deviceService.controlDevice(
-        deviceId: widget.device.id,
-        component: item.component,
-        state: newValue,
-      );
-
-      // Success - keep the new state
-      if (mounted) {
-        setState(() => item.isLoading = false);
-
-        ErrorHandler.showSuccessSnackbar(
-          context,
-          '${item.component.displayName} berhasil ${newValue ? "dinyalakan" : "dimatikan"}',
-        );
-      }
-
-      developer.log(
-        '✓ ${item.component.displayName} toggled successfully',
-        name: 'DeviceDetailPage',
-      );
-    } on ForbiddenException catch (e) {
-      // Viewer role cannot control
-      developer.log(
-        '✗ Control forbidden: ${e.message}',
-        name: 'DeviceDetailPage',
-      );
-
-      if (mounted) {
-        setState(() {
-          item.isEnabled = originalValue; // Revert
-          item.isLoading = false;
-        });
-        ErrorHandler.showErrorDialog(context, 'Akses Ditolak', e.message);
-      }
-    } on ServerException catch (e) {
-      // MQTT broker unreachable
-      developer.log(
-        '✗ Server error: ${e.message}',
-        name: 'DeviceDetailPage',
-      );
-
-      if (mounted) {
-        setState(() {
-          item.isEnabled = originalValue; // Revert
-          item.isLoading = false;
-        });
-        ErrorHandler.showErrorDialog(
-          context,
-          'Gagal Mengirim Perintah',
-          e.message,
-        );
-      }
-    } on RateLimitException catch (e) {
-      // Rate limit exceeded
-      developer.log(
-        '✗ Rate limit exceeded: ${e.message}',
-        name: 'DeviceDetailPage',
-      );
-
-      if (mounted) {
-        setState(() {
-          item.isEnabled = originalValue; // Revert
-          item.isLoading = false;
-        });
-        ErrorHandler.showRateLimitSnackbar(context, e.message);
-      }
-    } on NetworkException catch (e) {
-      // Network error
-      developer.log(
-        '✗ Network error: ${e.message}',
-        name: 'DeviceDetailPage',
-      );
-
-      if (mounted) {
-        setState(() {
-          item.isEnabled = originalValue; // Revert
-          item.isLoading = false;
-        });
-        ErrorHandler.showNetworkErrorSnackbar(
-          context,
-          e.message,
-          () => _toggleControl(index, newValue),
-        );
-      }
-    } catch (e) {
-      developer.log(
-        '✗ Unexpected error: $e',
-        name: 'DeviceDetailPage',
-        error: e,
-      );
-
-      if (mounted) {
-        setState(() {
-          item.isEnabled = originalValue; // Revert
-          item.isLoading = false;
-        });
-        ErrorHandler.showErrorSnackbar(context, 'Terjadi kesalahan: $e');
-      }
     }
   }
 
@@ -517,42 +381,84 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
     );
   }
 
+  /// Build control items using Consumer<DeviceProvider> for global state.
+  ///
+  /// Each component reads its ON/OFF and loading state from the Provider,
+  /// ensuring state persists across navigation (the root cause fix).
   Widget _buildControlItems() {
-    return Column(
-      children: List.generate(_controlItems.length, (index) {
-        final item = _controlItems[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _ControlItem(
-            icon: item.icon,
-            title: item.component.displayName,
-            subtitle: item.component.englishName,
-            isEnabled: item.isEnabled,
-            isLoading: item.isLoading,
-            color: item.color,
-            onToggle: (value) => _toggleControl(index, value),
-          ),
+    // Static list of components to render — order matches the original UI
+    const components = [
+      DeviceComponent.kipas,
+      DeviceComponent.lampu,
+      DeviceComponent.pompa,
+      DeviceComponent.pakanOtomatis,
+    ];
+
+    return Consumer<DeviceProvider>(
+      builder: (context, provider, child) {
+        return Column(
+          children: components.map((component) {
+            final isEnabled = provider.getComponentState(
+              widget.device.id,
+              component,
+            );
+            final isLoading = provider.isComponentLoading(
+              widget.device.id,
+              component,
+            );
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ControlItem(
+                icon: _getComponentIcon(component),
+                title: component.displayName,
+                subtitle: component.englishName,
+                isEnabled: isEnabled,
+                isLoading: isLoading,
+                color: _getComponentColor(component),
+                onToggle: (value) {
+                  provider.toggleComponent(
+                    context,
+                    widget.device.id,
+                    component,
+                    value,
+                  );
+                },
+              ),
+            );
+          }).toList(),
         );
-      }),
+      },
     );
   }
-}
 
-/// Control item state class
-class _ControlItemState {
-  final DeviceComponent component;
-  final IconData icon;
-  final Color color;
-  bool isEnabled;
-  bool isLoading;
+  /// Map DeviceComponent to its Material icon.
+  IconData _getComponentIcon(DeviceComponent component) {
+    switch (component) {
+      case DeviceComponent.kipas:
+        return Icons.air_rounded;
+      case DeviceComponent.lampu:
+        return Icons.lightbulb_rounded;
+      case DeviceComponent.pompa:
+        return Icons.water_drop_rounded;
+      case DeviceComponent.pakanOtomatis:
+        return Icons.restaurant_rounded;
+    }
+  }
 
-  _ControlItemState({
-    required this.component,
-    required this.icon,
-    required this.color,
-    this.isEnabled = false,
-    this.isLoading = false,
-  });
+  /// Map DeviceComponent to its brand color.
+  Color _getComponentColor(DeviceComponent component) {
+    switch (component) {
+      case DeviceComponent.kipas:
+        return const Color(0xFF2196F3);
+      case DeviceComponent.lampu:
+        return const Color(0xFFFFC107);
+      case DeviceComponent.pompa:
+        return const Color(0xFF2196F3);
+      case DeviceComponent.pakanOtomatis:
+        return const Color(0xFF4CAF50);
+    }
+  }
 }
 
 /// Condition card widget
