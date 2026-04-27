@@ -43,6 +43,7 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
   String _temperature = '--';
   String _humidity = '--';
   String _ammonia = '--';
+  int? _lightLevel;  // 0 = gelap, 1 = terang, null = no data
   bool _isSensorLoading = true;
 
   // Current user ID for ownership check (controls "Kelola Akses" visibility)
@@ -112,11 +113,12 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
           _temperature = latestLog.temperature.toStringAsFixed(1);
           _humidity = latestLog.humidity.toStringAsFixed(1);
           _ammonia = latestLog.ammonia.toStringAsFixed(1);
+          _lightLevel = latestLog.lightLevel;
           _isSensorLoading = false;
         });
 
         developer.log(
-          '✓ Sensor data updated: T=${_temperature}°C, H=${_humidity}%, A=${_ammonia}ppm',
+          '✓ Sensor data updated: T=${_temperature}°C, H=${_humidity}%, A=${_ammonia}ppm, L=${latestLog.lightLevelDisplay}',
           name: 'DeviceDetailPage',
         );
       }
@@ -242,6 +244,8 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
             _buildSectionTitle('KONDISI KANDANG'),
             const SizedBox(height: 8),
             _buildConditionCards(),
+            const SizedBox(height: 10),
+            _buildLightLevelIndicator(),
             const SizedBox(height: 20),
 
             // Control section
@@ -381,17 +385,70 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
     );
   }
 
+  /// Build a subtle chip/badge showing the current light level.
+  ///
+  /// Displays "Terang" (bright, sunny icon) or "Gelap" (dark, moon icon).
+  /// Shows a loading placeholder while sensor data is being fetched.
+  Widget _buildLightLevelIndicator() {
+    final bool isBright = _lightLevel == 1;
+    final String label = _isSensorLoading
+        ? 'Memuat...'
+        : (_lightLevel != null ? (isBright ? 'Terang' : 'Gelap') : 'N/A');
+    final IconData icon = _isSensorLoading
+        ? Icons.hourglass_empty
+        : (isBright ? Icons.wb_sunny_rounded : Icons.nightlight_round);
+    final Color color = _isSensorLoading
+        ? AppColors.textSecondary
+        : (isBright ? const Color(0xFFFFA000) : const Color(0xFF5C6BC0));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Text(
+            'Kondisi Cahaya:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build control items using Consumer<DeviceProvider> for global state.
   ///
   /// Each component reads its ON/OFF and loading state from the Provider,
   /// ensuring state persists across navigation (the root cause fix).
   Widget _buildControlItems() {
-    // Static list of components to render — order matches the original UI
+    // Static list of components to render.
+    // Currently only Lampu and Pompa are wired on the "Lite" hardware.
+    // Uncomment the others when the full relay board is deployed.
     const components = [
-      DeviceComponent.kipas,
+      // DeviceComponent.kipas,
       DeviceComponent.lampu,
       DeviceComponent.pompa,
-      DeviceComponent.pakanOtomatis,
+      // DeviceComponent.pakanOtomatis,
+      // DeviceComponent.exhaustFan,
     ];
 
     return Consumer<DeviceProvider>(
@@ -443,6 +500,8 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
         return Icons.water_drop_rounded;
       case DeviceComponent.pakanOtomatis:
         return Icons.restaurant_rounded;
+      case DeviceComponent.exhaustFan:
+        return Icons.wind_power;
     }
   }
 
@@ -457,6 +516,8 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
         return const Color(0xFF2196F3);
       case DeviceComponent.pakanOtomatis:
         return const Color(0xFF4CAF50);
+      case DeviceComponent.exhaustFan:
+        return const Color(0xFF00BCD4);
     }
   }
 }

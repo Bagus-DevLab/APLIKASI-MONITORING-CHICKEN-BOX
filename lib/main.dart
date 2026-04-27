@@ -8,6 +8,7 @@ import 'routes/app_routes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'constants/api_config.dart';
 import 'core/network/token_manager.dart';
+import 'core/network/auth_interceptor.dart';
 import 'providers/device_provider.dart';
 
 import 'pages/login_page.dart';
@@ -63,6 +64,10 @@ void main() async {
     debugPrint("===============================");
     // startPage stays as LoginPage
   }
+
+  // Wire the global navigator key to AuthInterceptor so it can push
+  // the MaintenanceScreen route on 503 errors without a BuildContext.
+  AuthInterceptor.navigatorKey = navigatorKey;
 
   runApp(MyApp(startPage: startPage));
 }

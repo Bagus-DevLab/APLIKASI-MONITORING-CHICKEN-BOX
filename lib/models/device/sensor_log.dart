@@ -3,11 +3,12 @@
 /// Based on API_CONTRACT.md Section 3.3: Device Management
 /// GET /api/devices/{device_id}/logs
 /// 
-/// Sensor Log Fields (from contract line 722-732):
+/// Sensor Log Fields (from contract line 722-734):
 /// - id: integer (auto-increment log ID)
 /// - temperature: float (temperature in Celsius)
 /// - humidity: float (relative humidity percentage)
 /// - ammonia: float (ammonia concentration in ppm)
+/// - light_level: integer or null (LDR reading: 0 = dark, 1 = bright)
 /// - is_alert: boolean (whether this reading triggered an alert)
 /// - alert_message: string or null (alert description, null if no alert)
 /// - timestamp: ISO 8601 (when the reading was recorded)
@@ -21,6 +22,7 @@
 ///   "temperature": 30.5,
 ///   "humidity": 75.0,
 ///   "ammonia": 12.5,
+///   "light_level": 1,
 ///   "is_alert": false,
 ///   "alert_message": null,
 ///   "timestamp": "2026-04-26T10:30:00Z"
@@ -39,6 +41,10 @@ class SensorLog {
   /// Ammonia concentration in ppm (parts per million)
   final double ammonia;
 
+  /// LDR light level reading: 0 = dark (gelap), 1 = bright (terang)
+  /// Null for legacy data that predates the LDR sensor addition.
+  final int? lightLevel;
+
   /// Whether this reading triggered an alert
   final bool isAlert;
 
@@ -54,6 +60,7 @@ class SensorLog {
     required this.temperature,
     required this.humidity,
     required this.ammonia,
+    this.lightLevel,
     required this.isAlert,
     this.alertMessage,
     required this.timestamp,
@@ -66,6 +73,7 @@ class SensorLog {
       temperature: (json['temperature'] as num).toDouble(),
       humidity: (json['humidity'] as num).toDouble(),
       ammonia: (json['ammonia'] as num).toDouble(),
+      lightLevel: json['light_level'] as int?,
       isAlert: json['is_alert'] as bool,
       alertMessage: json['alert_message'] as String?,
       timestamp: DateTime.parse(json['timestamp'] as String),
@@ -79,6 +87,7 @@ class SensorLog {
       'temperature': temperature,
       'humidity': humidity,
       'ammonia': ammonia,
+      'light_level': lightLevel,
       'is_alert': isAlert,
       'alert_message': alertMessage,
       'timestamp': timestamp.toIso8601String(),
@@ -137,6 +146,17 @@ class SensorLog {
   /// Get ammonia display with unit
   /// Format: "12.5 ppm"
   String get ammoniaDisplay => '${ammonia.toStringAsFixed(1)} ppm';
+
+  /// Get human-readable light level display
+  /// Returns "Terang" (bright), "Gelap" (dark), or "N/A" (no data)
+  String get lightLevelDisplay {
+    final level = lightLevel;
+    if (level == null) return 'N/A';
+    return level == 1 ? 'Terang' : 'Gelap';
+  }
+
+  /// Whether the coop is bright (light_level == 1)
+  bool get isBright => lightLevel == 1;
 
   /// Get temperature status based on contract thresholds
   /// Normal: 25-30°C
@@ -200,6 +220,7 @@ class SensorLog {
     double? temperature,
     double? humidity,
     double? ammonia,
+    int? lightLevel,
     bool? isAlert,
     String? alertMessage,
     DateTime? timestamp,
@@ -209,6 +230,7 @@ class SensorLog {
       temperature: temperature ?? this.temperature,
       humidity: humidity ?? this.humidity,
       ammonia: ammonia ?? this.ammonia,
+      lightLevel: lightLevel ?? this.lightLevel,
       isAlert: isAlert ?? this.isAlert,
       alertMessage: alertMessage ?? this.alertMessage,
       timestamp: timestamp ?? this.timestamp,
@@ -217,7 +239,7 @@ class SensorLog {
 
   @override
   String toString() {
-    return 'SensorLog(id: $id, temp: ${temperatureDisplay}, humidity: ${humidityDisplay}, ammonia: ${ammoniaDisplay}, alert: $isAlert)';
+    return 'SensorLog(id: $id, temp: ${temperatureDisplay}, humidity: ${humidityDisplay}, ammonia: ${ammoniaDisplay}, light: $lightLevelDisplay, alert: $isAlert)';
   }
 
   @override

@@ -3,11 +3,12 @@
 /// Based on API_CONTRACT.md Section 3.3: Device Management
 /// POST /api/devices/{device_id}/control
 /// 
-/// Valid component values (from contract line 765-775):
+/// Valid component values (from contract line 765-778):
 /// - kipas: Fan (Ventilation fan)
 /// - lampu: Light (Coop lighting)
 /// - pompa: Pump (Water pump)
 /// - pakan_otomatis: Auto Feeder (Automatic feeding system)
+/// - exhaust_fan: Exhaust Fan (Ammonia/heat ventilation)
 /// 
 /// Usage:
 /// ```dart
@@ -29,6 +30,9 @@ enum DeviceComponent {
 
   /// Automatic feeding system
   pakanOtomatis,
+
+  /// Exhaust fan for ammonia/heat ventilation
+  exhaustFan,
 }
 
 /// Extension to convert DeviceComponent enum to API string values
@@ -40,6 +44,7 @@ extension DeviceComponentExtension on DeviceComponent {
   /// - DeviceComponent.lampu → "lampu"
   /// - DeviceComponent.pompa → "pompa"
   /// - DeviceComponent.pakanOtomatis → "pakan_otomatis"
+  /// - DeviceComponent.exhaustFan → "exhaust_fan"
   String toApiValue() {
     switch (this) {
       case DeviceComponent.kipas:
@@ -50,6 +55,8 @@ extension DeviceComponentExtension on DeviceComponent {
         return 'pompa';
       case DeviceComponent.pakanOtomatis:
         return 'pakan_otomatis';
+      case DeviceComponent.exhaustFan:
+        return 'exhaust_fan';
     }
   }
 
@@ -64,6 +71,8 @@ extension DeviceComponentExtension on DeviceComponent {
         return 'Pompa';
       case DeviceComponent.pakanOtomatis:
         return 'Pakan Otomatis';
+      case DeviceComponent.exhaustFan:
+        return 'Exhaust Fan';
     }
   }
 
@@ -78,6 +87,8 @@ extension DeviceComponentExtension on DeviceComponent {
         return 'Pump';
       case DeviceComponent.pakanOtomatis:
         return 'Auto Feeder';
+      case DeviceComponent.exhaustFan:
+        return 'Exhaust Fan';
     }
   }
 
@@ -92,6 +103,8 @@ extension DeviceComponentExtension on DeviceComponent {
         return 'water_drop';
       case DeviceComponent.pakanOtomatis:
         return 'restaurant';
+      case DeviceComponent.exhaustFan:
+        return 'wind_power';
     }
   }
 
@@ -108,10 +121,12 @@ extension DeviceComponentExtension on DeviceComponent {
         return DeviceComponent.pompa;
       case 'pakan_otomatis':
         return DeviceComponent.pakanOtomatis;
+      case 'exhaust_fan':
+        return DeviceComponent.exhaustFan;
       default:
         throw ArgumentError(
           'Invalid component value: $value. '
-          'Valid values: kipas, lampu, pompa, pakan_otomatis',
+          'Valid values: kipas, lampu, pompa, pakan_otomatis, exhaust_fan',
         );
     }
   }
@@ -122,5 +137,6 @@ extension DeviceComponentExtension on DeviceComponent {
         'lampu',
         'pompa',
         'pakan_otomatis',
+        'exhaust_fan',
       ];
 }

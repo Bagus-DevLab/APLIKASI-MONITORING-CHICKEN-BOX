@@ -1,17 +1,30 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import 'api_exception.dart';
 import 'token_manager.dart';
+import 'dio_client.dart';
+import '../../constants/api_config.dart';
+import '../../widgets/maintenance_screen.dart';
 
 /// Dio interceptor that handles:
 /// 1. Automatic JWT Bearer token injection
 /// 2. Global error handling based on API contract
 /// 3. Request ID logging
 /// 4. Automatic logout on 401 errors (403 stays logged in)
+/// 5. Global maintenance mode on 503 errors (blocks entire app)
 /// 
 /// Based on API_CONTRACT.md Section 2: HTTP Error Dictionary
 class AuthInterceptor extends Interceptor {
   final TokenManager _tokenManager = TokenManager();
+
+  /// Global navigator key — set by main.dart so the interceptor can
+  /// push the MaintenanceScreen route without a BuildContext.
+  static GlobalKey<NavigatorState>? navigatorKey;
+
+  /// Prevents pushing multiple MaintenanceScreen routes simultaneously.
+  static bool _isMaintenanceScreenShowing = false;
 
   @override
   void onRequest(
@@ -101,6 +114,18 @@ class AuthInterceptor extends Interceptor {
         await _tokenManager.clearAuth();
         _tokenManager.triggerLogout();
       }
+
+      // Trigger full-screen maintenance mode for 503 (server down).
+      // This blocks the entire app until the server is back online.
+      // Offline banner takes precedence: if there's no internet, the
+      // user can't even reach the server to get a 503.
+      if (statusCode == 503) {
+        developer.log(
+          '⚠ Server maintenance (503). Showing MaintenanceScreen.',
+          name: 'AuthInterceptor',
+        );
+        _showMaintenanceScreen();
+      }
     } else {
       exception = UnknownException(
         err.message ?? 'Terjadi kesalahan yang tidak diketahui',
@@ -115,6 +140,74 @@ class AuthInterceptor extends Interceptor {
         error: exception,
       ),
     );
+  }
+
+  /// Push a full-screen [MaintenanceScreen] route that traps the user
+  /// until the backend health check passes.
+  ///
+  /// Uses [navigatorKey] (set by main.dart) so we don't need a BuildContext.
+  /// The [_isMaintenanceScreenShowing] flag prevents duplicate pushes when
+  /// multiple API calls fail with 503 simultaneously.
+  void _showMaintenanceScreen() {
+    if (_isMaintenanceScreenShowing) return;
+
+    final navigator = navigatorKey?.currentState;
+    if (navigator == null) {
+      developer.log(
+        '✗ navigatorKey is null — cannot show MaintenanceScreen',
+        name: 'AuthInterceptor',
+      );
+      return;
+    }
+
+    _isMaintenanceScreenShowing = true;
+
+    navigator.push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => PopScope(
+          // Trap the user — back button does nothing
+          canPop: false,
+          child: MaintenanceScreen(
+            onRetry: () => _checkHealthAndDismiss(navigator),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Check the backend health endpoint. If the server is back online,
+  /// pop the MaintenanceScreen and allow the user to continue.
+  Future<void> _checkHealthAndDismiss(NavigatorState navigator) async {
+    try {
+      // Use a separate Dio instance to avoid triggering this interceptor
+      // again (which would cause an infinite loop on 503).
+      final probe = Dio(BaseOptions(
+        baseUrl: DioClient().dio.options.baseUrl,
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+        validateStatus: (status) => status != null && status >= 200 && status < 300,
+      ));
+
+      await probe.get(ApiConfig.healthUrl);
+
+      // If we reach here, the server is back online
+      developer.log(
+        '✓ Server is back online — dismissing MaintenanceScreen',
+        name: 'AuthInterceptor',
+      );
+
+      _isMaintenanceScreenShowing = false;
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
+    } catch (e) {
+      developer.log(
+        '✗ Server still down: $e',
+        name: 'AuthInterceptor',
+      );
+      // MaintenanceScreen stays — its auto-retry will call us again
+    }
   }
 
   /// Handle HTTP errors based on status code and response format

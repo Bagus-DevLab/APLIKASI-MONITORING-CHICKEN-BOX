@@ -26,6 +26,7 @@
 - [System Architecture](#-system-architecture)
 - [Tech Stack](#-tech-stack)
 - [Key Features](#-key-features)
+- [Status Hardware (Lite vs V2)](#-status-hardware-lite-vs-v2)
 - [Architecture Highlights](#-architecture-highlights)
 - [Project Structure](#-project-structure)
 - [Getting Started](#-getting-started)
@@ -50,16 +51,16 @@ The platform addresses three critical challenges in poultry farming:
 ### How It Works
 
 ```
-┌─────────────┐     WiFi      ┌──────────────┐    HTTPS     ┌─────────────────┐
+┌─────────────┐  WiFi + MQTT  ┌──────────────┐    HTTPS     ┌─────────────────┐
 │   ESP32 +   │ ────────────► │   FastAPI     │ ◄──────────► │  Flutter App    │
-│   Sensors   │   Heartbeat   │   Backend     │   REST API   │  (Android/iOS)  │
-│   Actuators │ ◄──────────── │   PostgreSQL  │              │                 │
-└─────────────┘   Commands    └──────────────┘              └─────────────────┘
-     │                              │
-     │  DHT11 (Temp/Humidity)       │  JWT Authentication
-     │  MQ135 (Ammonia/NH₃)        │  Role-Based Access
-     │  Servo Motors (Actuators)    │  Cloudflare CDN/WAF
-     │  Relay Modules               │
+│   Sensors   │   Sensor Data │   Backend     │   REST API   │  (Android)      │
+│   Relays    │ ◄──────────── │   PostgreSQL  │              │                 │
+└─────────────┘   MQTT Ctrl   │   Mosquitto   │              └─────────────────┘
+     │                        └──────────────┘
+     │  DHT22 (Suhu/Kelembapan)     │  JWT Authentication
+     │  MQ-135 (Amonia/NH₃)        │  Role-Based Access
+     │  LDR (Cahaya)                │  MQTT Bridge (UUID→MAC)
+     │  Relay Modules (Active LOW)  │  Cloudflare CDN/WAF
 ```
 
 ---
@@ -70,9 +71,9 @@ The PCB ecosystem consists of three independent layers:
 
 | Layer | Technology | Responsibility |
 |-------|-----------|----------------|
-| **IoT Hardware** | ESP32, DHT11, MQ135, Servo, Relay | Sensor data collection, actuator control, WiFi connectivity |
-| **Cloud Backend** | FastAPI, PostgreSQL, JWT, Cloudflare | REST API, authentication, data persistence, rate limiting |
-| **Mobile Frontend** | Flutter, Dio, Firebase Auth | User interface, real-time monitoring, device management |
+| **IoT Hardware** | ESP32, DHT22, MQ-135, LDR, Relay | Sensor data collection, relay control, WiFi + MQTT |
+| **Cloud Backend** | FastAPI, PostgreSQL, Mosquitto, JWT | REST API, MQTT bridge, authentication, data persistence |
+| **Mobile Frontend** | Flutter, Dio, Provider, Firebase Auth | User interface, real-time monitoring, device management |
 
 This repository contains the **Mobile Frontend** layer.
 
@@ -104,14 +105,17 @@ This repository contains the **Mobile Frontend** layer.
 | **CDN/WAF** | Cloudflare | DDoS protection, SSL termination |
 | **Hosting** | `pcb.my.id` | Production deployment |
 
-### IoT Hardware
+### IoT Hardware (Firmware v3.0.0)
 
-| Component | Model | Function |
-|-----------|-------|----------|
-| **Microcontroller** | ESP32 | WiFi connectivity, sensor reading, actuator control |
-| **Temperature/Humidity** | DHT11 | Ambient temperature and relative humidity sensing |
-| **Gas Sensor** | MQ135 | Ammonia (NH₃) concentration detection |
-| **Actuators** | Servo Motors, Relay Modules | Fan, light, pump, and feeder control |
+| Komponen | Model | Fungsi |
+|----------|-------|--------|
+| **Microcontroller** | ESP32 | WiFi + BLE, pembacaan sensor, kontrol relay via MQTT |
+| **Suhu & Kelembapan** | DHT22 | Akurasi tinggi: ±0.5°C, range -40 s/d 80°C |
+| **Sensor Gas** | MQ-135 | Deteksi konsentrasi amonia (NH₃), range 0-500 ppm |
+| **Sensor Cahaya** | LDR (Digital) | Level cahaya: 0 = gelap, 1 = terang |
+| **Aktuator** | Relay Module (Active LOW) | Kontrol lampu, pompa, kipas, exhaust fan |
+
+> **Catatan Hardware:** Lihat bagian [Status Hardware](#-status-hardware-lite-vs-v2) di bawah untuk detail versi yang saat ini terpasang.
 
 ---
 
@@ -136,31 +140,37 @@ A hierarchical permission system ensures secure multi-tenant device management:
 
 ### 3. Real-Time Environmental Monitoring
 
-The app displays live sensor data from each chicken coop:
+Aplikasi menampilkan data sensor secara live dari setiap kandang:
 
-| Sensor | Metric | Unit | Alert Threshold |
-|--------|--------|------|-----------------|
-| **Suhu** (Temperature) | Ambient temperature | °C | Configurable per device |
-| **Kelembapan** (Humidity) | Relative humidity | % | Configurable per device |
-| **Amonia** (Ammonia) | NH₃ concentration | ppm | Configurable per device |
+| Sensor | Metrik | Satuan | Threshold |
+|--------|--------|--------|-----------|
+| **Suhu** | Temperatur ambient | °C | Normal: 25-30, Waspada: 20-25 / 30-35, Bahaya: <20 / >35 |
+| **Kelembapan** | Kelembapan relatif | % | Monitoring kontinu |
+| **Amonia** | Konsentrasi NH₃ | ppm | Normal: ≤10, Waspada: 10-20, Bahaya: >20 |
+| **Cahaya** | Level cahaya (LDR) | 0/1 | 0 = Gelap, 1 = Terang (indikator chip di UI) |
 
-- **"Riwayat" Page** — Historical sensor logs with paginated data (newest first)
-- **"Aktivitas" Tab** — Alert history filtered to readings where `is_alert = true`
+- **Auto-refresh** setiap 5 detik via REST API polling
+- **"Riwayat" Page** — Log sensor historis dengan paginasi (terbaru di atas)
+- **"Aktivitas" Tab** — Riwayat alert yang difilter berdasarkan `is_alert = true`
 
 ### 4. Remote Device Control
 
-Four controllable components per coop, each with independent toggle switches:
+Kontrol perangkat jarak jauh via MQTT melalui backend:
 
-| Component | API Value | Function |
-|-----------|-----------|----------|
-| **Kipas** (Fan) | `kipas` | Ventilation control |
-| **Lampu** (Light) | `lampu` | Coop lighting |
-| **Pompa** (Pump) | `pompa` | Water pump system |
-| **Pakan Otomatis** (Auto Feeder) | `pakan_otomatis` | Automated feeding |
+| Komponen | API Value | Fungsi | Status Hardware |
+|----------|-----------|--------|-----------------|
+| **Lampu** (Light) | `lampu` | Pencahayaan kandang | ✅ Aktif (Lite & V2) |
+| **Pompa** (Pump) | `pompa` | Sistem pompa air | ✅ Aktif (Lite & V2) |
+| **Kipas** (Fan) | `kipas` | Ventilasi kandang | ⏳ V2 only |
+| **Pakan Otomatis** (Auto Feeder) | `pakan_otomatis` | Pemberian pakan otomatis | ⏳ V2 only |
+| **Exhaust Fan** | `exhaust_fan` | Ventilasi amonia/panas | ⏳ V2 only |
 
-- **Optimistic UI Updates** — Switches toggle instantly; rollback on API failure
-- **Per-Switch Loading** — Individual loading indicators prevent UI blocking
-- **Backend as Source of Truth** — Device state always reconciled with server response
+- **Optimistic UI Updates** — Toggle switch berubah instan; rollback otomatis jika API gagal
+- **Per-Switch Loading** — Indikator loading per-switch, tidak memblokir UI lainnya
+- **Global State via Provider** — State toggle persist saat navigasi antar halaman
+- **Backend as Source of Truth** — State device selalu direkonsiliasi dengan respons server
+
+> **Catatan:** UI saat ini hanya menampilkan toggle untuk **Lampu** dan **Pompa** sesuai hardware Lite yang terpasang. Lihat [Status Hardware](#-status-hardware-lite-vs-v2) untuk detail lengkap.
 
 ### 5. BLE WiFi Provisioning
 
@@ -185,6 +195,67 @@ The **"Perangkat"** page enables first-time ESP32 setup:
 
 ---
 
+## 🔌 Status Hardware (Lite vs V2)
+
+Proyek ini dirancang dengan arsitektur **forward-compatible**: backend dan aplikasi Flutter sudah mendukung spesifikasi penuh Hardware V2, sementara hardware fisik yang saat ini terpasang adalah versi **Lite**.
+
+### Hardware yang Saat Ini Terpasang: **Lite Version**
+
+| Komponen | GPIO | Status |
+|----------|------|--------|
+| DHT22 (Suhu & Kelembapan) | GPIO 4 | ✅ Aktif |
+| MQ-135 (Amonia) | GPIO 34 | ✅ Aktif |
+| LDR (Cahaya) | GPIO 16 | ✅ Aktif |
+| Relay 1 — **Lampu** | GPIO 17 | ✅ Aktif |
+| Relay 2 — **Pompa** | GPIO 5 | ✅ Aktif |
+| Relay 3 — Kipas | GPIO 18 | ❌ Tidak terpasang |
+| Relay 4 — Exhaust Fan | GPIO 19 | ❌ Tidak terpasang |
+
+**Sensor Payload (4 field, dikirim setiap 30 detik via MQTT):**
+
+```json
+{
+  "temperature": 31.1,
+  "humidity": 83.5,
+  "ammonia": 12.5,
+  "light_level": 1
+}
+```
+
+### Kesiapan Backend & Aplikasi: **V2 Ready**
+
+| Fitur | Backend | Flutter App | Hardware Lite |
+|-------|---------|-------------|---------------|
+| Terima 4-field sensor payload | ✅ | ✅ | ✅ Mengirim |
+| Kontrol `lampu` via MQTT | ✅ | ✅ Toggle aktif | ✅ Relay terpasang |
+| Kontrol `pompa` via MQTT | ✅ | ✅ Toggle aktif | ✅ Relay terpasang |
+| Kontrol `kipas` via MQTT | ✅ | ⏸ Toggle di-hide | ❌ Relay belum ada |
+| Kontrol `pakan_otomatis` via MQTT | ✅ | ⏸ Toggle di-hide | ❌ Relay belum ada |
+| Kontrol `exhaust_fan` via MQTT | ✅ | ⏸ Toggle di-hide | ❌ Relay belum ada |
+| Display `light_level` di UI | ✅ | ✅ Chip indicator | ✅ LDR terpasang |
+| WebSocket real-time streaming | ✅ | ⏸ Belum diimplementasi | — |
+
+### Cara Upgrade ke Hardware V2
+
+Saat hardware full relay board sudah terpasang:
+
+1. **Flutter App** — Buka `lib/pages/device_detail_page.dart`, cari method `_buildControlItems()`, uncomment komponen yang dibutuhkan:
+   ```dart
+   const components = [
+     // DeviceComponent.kipas,        // ← Uncomment
+     DeviceComponent.lampu,
+     DeviceComponent.pompa,
+     // DeviceComponent.pakanOtomatis, // ← Uncomment
+     // DeviceComponent.exhaustFan,    // ← Uncomment
+   ];
+   ```
+2. **Backend** — Tidak perlu perubahan. Semua endpoint sudah mendukung 5 komponen.
+3. **ESP32 Firmware** — Sudah mendukung semua 5 komponen di firmware v3.0.0.
+
+> **Penting:** Mengirim command `kipas`, `exhaust_fan`, atau `pakan_otomatis` ke API saat hardware Lite terpasang **tidak akan error** — backend menerima dan meneruskan via MQTT, tapi ESP32 akan mengabaikan command untuk relay yang tidak terpasang.
+
+---
+
 ## 🧱 Architecture Highlights
 
 ### Networking Layer
@@ -202,7 +273,9 @@ The **"Perangkat"** page enables first-time ESP32 setup:
 │  │ • Handle 401 →  │    │ • Base URL from .env   │  │
 │  │   global logout │    │                        │  │
 │  │ • Handle 403 →  │    └────────────────────────┘  │
-│  │   force logout  │                                │
+│  │   SnackBar only │                                │
+│  │ • Handle 503 →  │                                │
+│  │   Maintenance   │                                │
 │  └─────────────────┘                                │
 └─────────────────────────────────────────────────────┘
                           │
@@ -259,7 +332,7 @@ lib/
 ├── core/
 │   └── network/
 │       ├── api_exception.dart          # Typed exception hierarchy (11 classes)
-│       ├── auth_interceptor.dart       # JWT injection, 401/403 global handling
+│       ├── auth_interceptor.dart       # JWT injection, 401/403/503 global handling
 │       ├── dio_client.dart             # Singleton Dio instance configuration
 │       └── token_manager.dart          # Secure storage with corruption recovery
 ├── models/
@@ -272,8 +345,8 @@ lib/
 │   └── device/
 │       ├── device.dart                 # Device model with sensor state
 │       ├── device_assignment.dart       # User-device role assignment
-│       ├── device_component.dart        # Enum: kipas, lampu, pompa, pakan_otomatis
-│       └── sensor_log.dart             # Sensor reading with alert metadata
+│       ├── device_component.dart        # Enum: kipas, lampu, pompa, pakan_otomatis, exhaust_fan
+│       └── sensor_log.dart             # Sensor reading with alert metadata + light_level
 ├── pages/
 │   ├── login_page.dart                 # Firebase auth + backend JWT exchange
 │   ├── register_page.dart              # Account registration flow
@@ -287,11 +360,16 @@ lib/
 │   └── profile_page.dart               # User profile + logout
 ├── routes/
 │   └── app_routes.dart                 # Named route definitions
+├── providers/
+│   └── device_provider.dart            # Global toggle state (ChangeNotifier + Provider)
 ├── services/
 │   ├── auth_service.dart               # Login/logout with TokenManager integration
 │   └── device_service.dart             # Device CRUD, control, assignment operations
-└── utils/
-    └── error_handler.dart              # Centralized UI error feedback (8 methods)
+├── utils/
+│   └── error_handler.dart              # Humanized error messages (casual Indonesian)
+└── widgets/
+    ├── offline_banner.dart             # Persistent red banner saat offline
+    └── maintenance_screen.dart         # Full-screen 503 maintenance blocker
 ```
 
 ---
