@@ -89,7 +89,7 @@ Key networking files:
 - `lib/services/auth_service.dart` handles Firebase token exchange and local logout.
 - `lib/services/device_service.dart` handles device list, control, claim, logs, assignments, and user lookup by email.
 
-Backend details are documented in [docs/API_CONTRACT.md](docs/API_CONTRACT.md). Developer workflows are in [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md).
+Backend details are documented in [docs/API_CONTRACT.md](docs/API_CONTRACT.md). Developer workflows are in [docs/DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md), and frontend black-box scenarios are in [docs/FRONTEND_BLACKBOX_TESTING.md](docs/FRONTEND_BLACKBOX_TESTING.md).
 
 ## Environment
 

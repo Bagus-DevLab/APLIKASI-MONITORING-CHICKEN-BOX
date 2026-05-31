@@ -138,4 +138,5 @@ flutter build apk --release
 - `README.md`: product overview, project structure, commands, active app status.
 - `docs/API_CONTRACT.md`: backend API source of truth.
 - `docs/DEVELOPMENT_GUIDE.md`: current frontend implementation guide.
+- `docs/FRONTEND_BLACKBOX_TESTING.md`: manual black-box frontend scenarios and regression checklist.
 - `AGENTS.md`: contributor and coding-agent guide.
